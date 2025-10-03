@@ -30,6 +30,7 @@ export interface Question {
 export interface QnAPair {
   id: number;
   category1: string;
+  category2: string;
   question: string;
   answers: {
     id: number;

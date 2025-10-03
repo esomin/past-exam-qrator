@@ -7,6 +7,7 @@ data/a.json 파일을 읽어서 여러 형태의 output 파일들을 생성합�
 import json
 import os
 import re
+import unicodedata
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -18,6 +19,19 @@ class QnAProcessor:
         self.input_file = input_file
         self.output_dir = output_dir
         self.ensure_output_dir()
+        
+        # 키워드 추출을 위한 정규식 패턴
+        self.keyword_pattern = re.compile(r"""
+            (.+?)                   # 캡처: 핵심 키워드
+            (?=                     # Lookahead 시작
+                에\s+(대한|관한)       # "에 대한/에 관한"
+                | [과와]\s*관련(된|한|하여) # "과/와 관련된/관련한/관련하여"
+                | 의\s*내용\s*중        # "의 내용 중"
+                | 에\s*해당(하는|하지)   # "에 해당하는/에 해당하지"
+                | 로만\s*묶은          # "로만 묶은"
+                | 으로                 # "으로"
+            )                       # Lookahead 끝
+        """, re.VERBOSE)
     
     def ensure_output_dir(self) -> None:
         """출력 디렉토리가 존재하는지 확인하고 없으면 생성"""
@@ -56,6 +70,30 @@ class QnAProcessor:
             return ""
         return re.sub(r'<[^>]*>', '', text).strip()
     
+    def normalize_text(self, text: str) -> str:
+        """유니코드 정규화"""
+        return unicodedata.normalize("NFKC", text).strip()
+    
+    def clean_prefix(self, text: str) -> str:
+        """문제 번호 및 불필요한 접두사 제거"""
+        text = self.normalize_text(text)
+        # 1. [숫자] 문제번호 제거
+        text = re.sub(r"^\[\d+\]\s*", "", text)
+        # 2. "다음", "다음 중" 제거 (맨 앞 또는 카테고리 뒤)
+        text = re.sub(r"(^|\]\s*)다음\s*중\s*", r"\1", text)
+        text = re.sub(r"(^|\]\s*)다음\s*", r"\1", text)
+        return text.strip()
+    
+    def extract_keyword(self, question_text: str) -> str:
+        """질문에서 핵심 키워드 추출"""
+        normalized_text = self.normalize_text(question_text)
+        match = self.keyword_pattern.search(normalized_text)
+        if match:
+            subject = match.group(1).strip()
+        else:
+            subject = normalized_text
+        return self.clean_prefix(subject)
+    
     def process_questions(self, qna_array: List[Dict[str, Any]]) -> List[str]:
         """질문 데이터를 추출하고 필터링"""
         return [
@@ -74,7 +112,7 @@ class QnAProcessor:
         return answers
     
     def process_qna_pairs(self, qna_array: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Q&A 쌍 데이터를 생성 (extractQna.ts의 transform 함수와 동일한 형태)"""
+        """Q&A 쌍 데이터를 생성 (extractQna.ts의 transform 함수와 동일한 형태 + 키워드 추출)"""
         # ETC 타입 필터링 및 카테고리별 정렬
         filtered_data = [q for q in qna_array if q.get('titleType') != "ETC"]
         sorted_data = sorted(filtered_data, key=lambda q: q.get('categoryTitle', ''))
@@ -83,6 +121,7 @@ class QnAProcessor:
             {
                 'id': q['id'],
                 'category1': q.get('categoryTitle', ''),
+                'category2': self.extract_keyword(q['title']),  # 키워드 추출하여 category2에 저장
                 'question': q['title'],
                 'answers': [
                     {
