@@ -26,7 +26,7 @@ nvm use 22
 npm install
 ```
 
-### Python 환경 (스크래핑용)
+### Python 환경 
 ```bash
 cd python
 python3 -m venv myenv

@@ -13,4 +13,4 @@ function transform(qnaArray) {
 const b = transform(a);
 console.dir(b, { depth: null });
 
-fs.writeFileSync("./data/output.json", JSON.stringify(b, null, 2), "utf-8");
+fs.writeFileSync("./python/data/output.json", JSON.stringify(b, null, 2), "utf-8");
