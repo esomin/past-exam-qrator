@@ -1,0 +1,27 @@
+{
+  "name": "qna-processor",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Q&A data processing tool",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/app.js",
+    "dev": "tsx watch src/app.ts",
+    "process-questions": "npm run build && node dist/processors/questions.js",
+    "process-answers": "npm run build && node dist/processors/answers.js",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": ["qna", "data-processing", "typescript"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0"
+  }
+}
