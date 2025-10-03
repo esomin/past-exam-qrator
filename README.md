@@ -9,7 +9,7 @@ project/
 │   ├── types/             # 타입 정의
 │   ├── processors/        # 데이터 처리 모듈
 │   ├── utils/            # 유틸리티 함수
-│   └── app.ts            # 메인 애플리케이션
+│   └── extractQna.ts            # 메인 애플리케이션
 ├── python/               # Python 스크래핑 코드
 │   ├── requirements.txt
 │   └── *.ipynb
