@@ -3,6 +3,11 @@ export interface Answer {
   id: number;
   order: number;
   title: string;
+  commentary: string;
+  answerKind: "O" | "X";
+  bookmarkCount: number;
+  bookmarkRate: number;
+  history: any;
 }
 
 export interface Question {
@@ -19,11 +24,19 @@ export interface Question {
   solve: string;
   categoryTitle: string;
   answerSet: Answer[];
+  history: any;
 }
 
 export interface QnAPair {
+  id: number;
+  category1: string;
   question: string;
-  answers: string[];
+  answers: {
+    id: number;
+    answer: string;
+    isCorrect: boolean;
+    isTrue: boolean;
+  }[];
 }
 
 export interface ProcessorConfig {

@@ -45,3 +45,4 @@ dist/
 
 # Output files (optional)
 # data/*.json
+/python/.venv/

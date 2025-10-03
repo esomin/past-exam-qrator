@@ -2,13 +2,23 @@ import type { Question, QnAPair } from '../types/index.js';
 import { saveJsonFile } from '../utils/file.js';
 
 /**
- * Q&A 쌍 데이터를 생성합니다
+ * Q&A 쌍 데이터를 생성합니다 (extractQna.ts의 transform 함수와 동일한 형태)
  */
 export const processQnAPairs = (qnaArray: Question[]): QnAPair[] => {
-  return qnaArray.map(q => ({
-    question: q.title,
-    answers: q.answerSet.map(answer => answer.title)
-  }));
+  return qnaArray
+    .filter(q => q.titleType !== "ETC")
+    .sort((q1, q2) => q1.categoryTitle.localeCompare(q2.categoryTitle))
+    .map(q => ({
+      id: q.id,
+      category1: q.categoryTitle,
+      question: q.title,
+      answers: q.answerSet.map(answer => ({
+        id: answer.id,
+        answer: answer.title,
+        isCorrect: answer.answerKind === "O",
+        isTrue: q.titleType === "POSITIVE" ? answer.answerKind === "O" : answer.answerKind === "X"
+      }))
+    }));
 };
 
 /**
@@ -18,7 +28,7 @@ export const processAndSaveQnAPairs = (qnaArray: Question[], outputDir: string =
   console.log('🔄 Processing Q&A pairs...');
   
   const qnaPairs = processQnAPairs(qnaArray);
-  saveJsonFile(qnaPairs, 'qna-pairs.json', outputDir);
+  saveJsonFile(qnaPairs, 'qna_pairs.json', outputDir);
   
   console.log(`✨ Processed ${qnaPairs.length} Q&A pairs`);
 };
