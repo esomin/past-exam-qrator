@@ -1,15 +1,14 @@
-=== Similarity Deduplication Log - 2025-10-04 16:55:13 ===
+=== Similarity Deduplication Log - 2025-10-04 17:22:49 ===
 
-🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at 2025-10-04 16:54:50
+🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at 2025-10-04 17:22:28
 🚀 Starting answer filtering and similarity-based deduplication...
 📋 Step 1: Filtering meaningless answers...
 전체 3149개 → 남김 3085 / 제거 64
 📊 Filtered out 64 meaningless answers
 📊 Proceeding with 3085 valid answers
-⏱️ Step 1 completed in 0.03 seconds
 🔍 Step 2: Removing similar duplicates...
 🔍 Finding similar answers with threshold 0.8...
-⏱️ Text preprocessing completed in 0.05 seconds
+⏱️ Text preprocessing completed in 0.04 seconds
 📊 Processing 3076 valid answers...
 📊 Calculating TF-IDF vectors...
 📚 Vocabulary size: 12060
@@ -20,7 +19,7 @@
    Vectorizing... 2000/3076
    Vectorizing... 2500/3076
    Vectorizing... 3000/3076
-⏱️ TF-IDF vectorization completed in 11.60 seconds
+⏱️ TF-IDF vectorization completed in 9.96 seconds
 🔗 Grouping similar answers...
    Processing... 0/3076 (0 groups found)
    Processing... 100/3076 (84 groups found)
@@ -49,13 +48,12 @@
    Processing... 2900/3076 (2384 groups found)
    Processing... 3000/3076 (2474 groups found)
 📊 Total comparisons made: 2,749
-⏱️ Similarity grouping completed in 11.30 seconds
-⏱️ Total similarity detection time: 22.95 seconds
-⏱️ Step 2 completed in 23.16 seconds
+⏱️ Similarity grouping completed in 11.47 seconds
+⏱️ Total similarity detection time: 21.47 seconds
 ✅ Saved: data/answers_similarity_unique.json
 ✅ Saved: data/answers_similarity_removed.json
-✅ Saved: data/answers_similarity_count_3.json
-⏱️ File saving completed in 0.02 seconds
+✅ Saved: data/answers_similarity_unique_categorized.json
+✅ Saved: data/answers_similarity_removed_categorized.json
 📁 Loaded 3149 answers from data/answers.json
 
 📊 === FINAL STATISTICS ===
@@ -65,17 +63,12 @@
 ✨ Similar answers removed: 536 (17.37%)
 ✨ Final unique answers: 2540
 ✨ Similarity groups: 318
-✨ Similarity count 3 answers: 63
 📊 Total removal rate: 19.05%
 📊 Similarity group rate: 12.52%
 📊 Math check: 3149 - 64 - 536 = 2549 (should equal 2540)
 📊 Average similarity in groups: 0.913
 
-⏱️ === PROCESSING TIME SUMMARY ===
-⏱️ Step 1 (Filtering): 0.03 seconds
-⏱️ Step 2 (Similarity): 23.16 seconds
-⏱️ File Saving: 0.02 seconds
-⏱️ Total Processing Time: 23.22 seconds (0.39 minutes)
+⏱️ Total Processing Time: 21.74 seconds (0.36 minutes)
 ✅ Answer filtering and similarity-based deduplication completed successfully!
-🏁 Process finished at 2025-10-04 16:55:13
-⏱️ Total Runtime: 23.22 seconds (0.39 minutes)
+🏁 Process finished at 2025-10-04 17:22:49
+⏱️ Total Runtime: 21.74 seconds (0.36 minutes)

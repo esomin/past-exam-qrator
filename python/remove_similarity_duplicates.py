@@ -338,21 +338,15 @@ class SimilarityDeduplicator:
         print('🚀 Starting answer filtering and similarity-based deduplication...')
         
         # 1단계: 답변 필터링 (자모 나열, 숫자개 등 제거)
-        step1_start = time.time()
         print('📋 Step 1: Filtering meaningless answers...')
         filtered_answers, removed_answers = self.answer_filter.run()
-        step1_time = time.time() - step1_start
         
         print(f'📊 Filtered out {len(removed_answers)} meaningless answers')
         print(f'📊 Proceeding with {len(filtered_answers)} valid answers')
-        print(f'⏱️ Step 1 completed in {step1_time:.2f} seconds')
         
         # 2단계: 유사도 기반 중복 제거
-        step2_start = time.time()
         print('🔍 Step 2: Removing similar duplicates...')
         unique_answers, similar_groups = self.find_similar_groups(filtered_answers)
-        step2_time = time.time() - step2_start
-        print(f'⏱️ Step 2 completed in {step2_time:.2f} seconds')
         
         # similar_groups도 동일한 기준으로 정렬
         similar_groups.sort(key=lambda x: (
@@ -361,20 +355,23 @@ class SimilarityDeduplicator:
             x.get('category2', '')         # category2 오름차순
         ))
         
-        # similarityCount가 3인 데이터 별도 추출 (category1, category2로만 정렬)
-        similarity_count_3 = [answer for answer in unique_answers if answer.get('similarityCount', 0) == 3]
-        similarity_count_3.sort(key=lambda x: (
+        # 결과 저장
+        self.save_json_file(unique_answers, 'answers_similarity_unique.json')
+        self.save_json_file(similar_groups, 'answers_similarity_removed.json')
+        
+        # category1, category2 순으로 정렬된 파일 추가 생성
+        unique_answers_categorized = sorted(unique_answers, key=lambda x: (
             x.get('category1', ''),        # category1 오름차순
             x.get('category2', '')         # category2 오름차순
         ))
         
-        # 결과 저장
-        save_start = time.time()
-        self.save_json_file(unique_answers, 'answers_similarity_unique.json')
-        self.save_json_file(similar_groups, 'answers_similarity_removed.json')
-        self.save_json_file(similarity_count_3, 'answers_similarity_count_3.json')
-        save_time = time.time() - save_start
-        print(f'⏱️ File saving completed in {save_time:.2f} seconds')
+        similar_groups_categorized = sorted(similar_groups, key=lambda x: (
+            x.get('category1', ''),        # category1 오름차순
+            x.get('category2', '')         # category2 오름차순
+        ))
+        
+        self.save_json_file(unique_answers_categorized, 'answers_similarity_unique_categorized.json')
+        self.save_json_file(similar_groups_categorized, 'answers_similarity_removed_categorized.json')
         
         # 통계 출력
         original_count = len(self.load_answers())  # 원본 데이터 개수
@@ -395,7 +392,6 @@ class SimilarityDeduplicator:
         print(f'✨ Similar answers removed: {similarity_removed} ({similarity_removal_rate:.2f}%)')
         print(f'✨ Final unique answers: {final_count}')
         print(f'✨ Similarity groups: {len(similar_groups)}')
-        print(f'✨ Similarity count 3 answers: {len(similarity_count_3)}')
         print(f'📊 Total removal rate: {total_removal_rate:.2f}%')
         print(f'📊 Similarity group rate: {similarity_group_rate:.2f}%')
         print(f'📊 Math check: {original_count} - {meaningless_removed} - {similarity_removed} = {original_count - meaningless_removed - similarity_removed} (should equal {final_count})')
@@ -407,11 +403,7 @@ class SimilarityDeduplicator:
         
         # 전체 처리시간
         total_time = time.time() - total_start_time
-        print(f'\n⏱️ === PROCESSING TIME SUMMARY ===')
-        print(f'⏱️ Step 1 (Filtering): {step1_time:.2f} seconds')
-        print(f'⏱️ Step 2 (Similarity): {step2_time:.2f} seconds')
-        print(f'⏱️ File Saving: {save_time:.2f} seconds')
-        print(f'⏱️ Total Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
+        print(f'\n⏱️ Total Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
     
     def run(self) -> None:
         """답변 필터링 및 유사도 기반 중복 제거 실행"""
