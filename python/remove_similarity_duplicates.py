@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TF-IDF + 코사인 유사도 기반 중복 제거 모듈
-answers_unique.json 파일에서 의미적으로 유사한 답변들을 제거합니다.
+answers.json 파일에서 의미없는 답변을 필터링한 후 의미적으로 유사한 답변들을 제거합니다.
 """
 
 import json
@@ -11,6 +11,7 @@ import math
 from typing import List, Dict, Any, Tuple
 from pathlib import Path
 from collections import Counter
+from filter_answers import AnswerFilter
 
 
 class SimilarityDeduplicator:
@@ -21,6 +22,9 @@ class SimilarityDeduplicator:
         self.output_dir = output_dir
         self.threshold = threshold
         self.ensure_output_dir()
+        
+        # 답변 필터링 인스턴스 생성
+        self.answer_filter = AnswerFilter(input_file=input_file, output_dir=output_dir)
     
     def ensure_output_dir(self) -> None:
         """출력 디렉토리가 존재하는지 확인하고 없으면 생성"""
@@ -247,6 +251,8 @@ class SimilarityDeduplicator:
                 removed_answers = [valid_answers[idx] for idx in current_group if idx != representative_idx]
                 similar_groups.append({
                     'representativeId': representative.get('id'),
+                    'category1': representative.get('category1', ''),
+                    'category2': representative.get('category2', ''),
                     'representativeAnswer': representative.get('answer', ''),
                     'similarityCount': len(current_group),
                     'avgSimilarity': representative['avgSimilarity'],
@@ -256,43 +262,64 @@ class SimilarityDeduplicator:
             unique_answers.append(representative)
             processed_indices.add(i)
         
-        # similarityCount 큰 순으로 정렬
-        unique_answers.sort(key=lambda x: x.get('similarityCount', 0), reverse=True)
+        # similarityCount -> category1 -> category2 순으로 정렬
+        unique_answers.sort(key=lambda x: (
+            -x.get('similarityCount', 0),  # similarityCount 내림차순
+            x.get('category1', ''),        # category1 오름차순
+            x.get('category2', '')         # category2 오름차순
+        ))
         
         print(f"📊 Total comparisons made: {total_comparisons:,}")
         return unique_answers, similar_groups
     
     def process_and_save(self) -> None:
-        """유사도 기반 중복 제거 처리 및 파일 저장"""
-        print('🚀 Starting similarity-based deduplication...')
+        """답변 필터링 후 유사도 기반 중복 제거 처리 및 파일 저장"""
+        print('🚀 Starting answer filtering and similarity-based deduplication...')
         
-        # 데이터 로드
-        answers = self.load_answers()
+        # 1단계: 답변 필터링 (자모 나열, 숫자개 등 제거)
+        print('📋 Step 1: Filtering meaningless answers...')
+        filtered_answers, removed_answers = self.answer_filter.run()
         
-        # 유사도 기반 중복 제거
-        unique_answers, similar_groups = self.find_similar_groups(answers)
+        print(f'📊 Filtered out {len(removed_answers)} meaningless answers')
+        print(f'📊 Proceeding with {len(filtered_answers)} valid answers')
+        
+        # 2단계: 유사도 기반 중복 제거
+        print('🔍 Step 2: Removing similar duplicates...')
+        unique_answers, similar_groups = self.find_similar_groups(filtered_answers)
+        
+        # similar_groups도 동일한 기준으로 정렬
+        similar_groups.sort(key=lambda x: (
+            -x.get('similarityCount', 0),  # similarityCount 내림차순
+            x.get('category1', ''),        # category1 오름차순
+            x.get('category2', '')         # category2 오름차순
+        ))
         
         # 결과 저장
         self.save_json_file(unique_answers, 'answers_similarity_unique.json')
         self.save_json_file(similar_groups, 'answers_similarity_removed.json')
         
         # 통계 출력
-        total_removed = sum(len(group['removedAnswers']) for group in similar_groups)
-        valid_answers_count = len([a for a in answers if a.get('answer', '').strip()])
-        invalid_answers_count = len(answers) - valid_answers_count
+        original_count = len(self.load_answers())  # 원본 데이터 개수
+        filtered_count = len(filtered_answers)
+        meaningless_removed = len(removed_answers)
+        similarity_removed = sum(len(group['removedAnswers']) for group in similar_groups)
+        final_count = len(unique_answers)
         
-        removal_rate = (total_removed / len(answers)) * 100 if len(answers) > 0 else 0
+        total_removal_rate = ((meaningless_removed + similarity_removed) / original_count) * 100 if original_count > 0 else 0
+        meaningless_removal_rate = (meaningless_removed / original_count) * 100 if original_count > 0 else 0
+        similarity_removal_rate = (similarity_removed / filtered_count) * 100 if filtered_count > 0 else 0
         similarity_group_rate = (len(similar_groups) / len(unique_answers)) * 100 if len(unique_answers) > 0 else 0
         
-        print(f'✨ Original answers: {len(answers)}')
-        print(f'✨ Valid answers (processed): {valid_answers_count}')
-        print(f'✨ Invalid/empty answers (skipped): {invalid_answers_count}')
-        print(f'✨ Similarity-unique answers: {len(unique_answers)}')
-        print(f'✨ Removed by similarity: {total_removed}')
+        print(f'\n📊 === FINAL STATISTICS ===')
+        print(f'✨ Original answers: {original_count}')
+        print(f'✨ Meaningless answers removed: {meaningless_removed} ({meaningless_removal_rate:.2f}%)')
+        print(f'✨ Filtered answers: {filtered_count}')
+        print(f'✨ Similar answers removed: {similarity_removed} ({similarity_removal_rate:.2f}%)')
+        print(f'✨ Final unique answers: {final_count}')
         print(f'✨ Similarity groups: {len(similar_groups)}')
-        print(f'📊 Math check: {valid_answers_count} - {total_removed} = {valid_answers_count - total_removed} (should equal {len(unique_answers)})')
-        print(f'📊 Similarity removal rate: {removal_rate:.2f}%')
+        print(f'📊 Total removal rate: {total_removal_rate:.2f}%')
         print(f'📊 Similarity group rate: {similarity_group_rate:.2f}%')
+        print(f'📊 Math check: {original_count} - {meaningless_removed} - {similarity_removed} = {original_count - meaningless_removed - similarity_removed} (should equal {final_count})')
         
         # 임계값별 통계
         if similar_groups:
@@ -300,15 +327,15 @@ class SimilarityDeduplicator:
             print(f'📊 Average similarity in groups: {avg_similarity:.3f}')
     
     def run(self) -> None:
-        """유사도 기반 중복 제거 실행"""
-        print('🚀 Starting Similarity-based Duplicate Removal')
+        """답변 필터링 및 유사도 기반 중복 제거 실행"""
+        print('🚀 Starting Answer Filtering and Similarity-based Duplicate Removal')
         
         try:
             self.process_and_save()
-            print('✅ Similarity-based deduplication completed successfully!')
+            print('✅ Answer filtering and similarity-based deduplication completed successfully!')
             
         except Exception as error:
-            print(f'❌ Similarity-based deduplication failed: {error}')
+            print(f'❌ Answer filtering and similarity-based deduplication failed: {error}')
             raise
 
 
@@ -316,7 +343,7 @@ def main():
     """메인 함수"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='TF-IDF + 코사인 유사도 기반 중복 제거')
+    parser = argparse.ArgumentParser(description='답변 필터링 + TF-IDF + 코사인 유사도 기반 중복 제거')
     parser.add_argument('--input', '-i', default='data/answers.json', help='입력 파일 경로')
     parser.add_argument('--output', '-o', default='data', help='출력 디렉토리')
     parser.add_argument('--threshold', '-t', type=float, default=0.8, help='유사도 임계값 (0.0-1.0)')

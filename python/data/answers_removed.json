@@ -1,0 +1,450 @@
+[
+  {
+    "id": 150593,
+    "category1": "1) 법원의 조직",
+    "category2": "법원",
+    "answer": "ㄱ,ㄷ",
+    "isTrue": true
+  },
+  {
+    "id": 150594,
+    "category1": "1) 법원의 조직",
+    "category2": "법원",
+    "answer": "ㄴ,ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 150595,
+    "category1": "1) 법원의 조직",
+    "category2": "법원",
+    "answer": "ㄱ,ㄴ,ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 150596,
+    "category1": "1) 법원의 조직",
+    "category2": "법원",
+    "answer": "ㄱ,ㄴ,ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 224723,
+    "category1": "1) 사법권의 독립 및 한계",
+    "category2": "<보기>에서 사법(司法)의 독립성",
+    "answer": "ㄱ, ㄴ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 224724,
+    "category1": "1) 사법권의 독립 및 한계",
+    "category2": "<보기>에서 사법(司法)의 독립성",
+    "answer": "ㄱ, ㄷ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 224725,
+    "category1": "1) 사법권의 독립 및 한계",
+    "category2": "<보기>에서 사법(司法)의 독립성",
+    "answer": "ㄱ, ㄷ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 224726,
+    "category1": "1) 사법권의 독립 및 한계",
+    "category2": "<보기>에서 사법(司法)의 독립성",
+    "answer": "ㄴ, ㄷ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 224727,
+    "category1": "1) 사법권의 독립 및 한계",
+    "category2": "<보기>에서 사법(司法)의 독립성",
+    "answer": "ㄴ, ㄹ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 220362,
+    "category1": "1. 대통령",
+    "category2": "대통령",
+    "answer": "ㄱ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 220363,
+    "category1": "1. 대통령",
+    "category2": "대통령",
+    "answer": "ㄴ, ㄷ",
+    "isTrue": true
+  },
+  {
+    "id": 220364,
+    "category1": "1. 대통령",
+    "category2": "대통령",
+    "answer": "ㄱ, ㄴ, ㄷ",
+    "isTrue": true
+  },
+  {
+    "id": 220365,
+    "category1": "1. 대통령",
+    "category2": "대통령",
+    "answer": "ㄴ, ㄷ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 220511,
+    "category1": "1. 헌법재판제도의 의의 및 연혁",
+    "category2": "헌법재판",
+    "answer": "ㄱ, ㄴ, ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 220512,
+    "category1": "1. 헌법재판제도의 의의 및 연혁",
+    "category2": "헌법재판",
+    "answer": "ㄱ, ㄴ, ㅁ",
+    "isTrue": true
+  },
+  {
+    "id": 220513,
+    "category1": "1. 헌법재판제도의 의의 및 연혁",
+    "category2": "헌법재판",
+    "answer": "ㄱ, ㄷ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 220514,
+    "category1": "1. 헌법재판제도의 의의 및 연혁",
+    "category2": "헌법재판",
+    "answer": "ㄴ, ㄷ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 220515,
+    "category1": "1. 헌법재판제도의 의의 및 연혁",
+    "category2": "헌법재판",
+    "answer": "ㄴ, ㄹ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 220342,
+    "category1": "2. 정부",
+    "category2": "국가인권위원회",
+    "answer": "ㄱ, ㄴ",
+    "isTrue": true
+  },
+  {
+    "id": 220343,
+    "category1": "2. 정부",
+    "category2": "국가인권위원회",
+    "answer": "ㄱ, ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 220344,
+    "category1": "2. 정부",
+    "category2": "국가인권위원회",
+    "answer": "ㄱ, ㄴ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 220345,
+    "category1": "2. 정부",
+    "category2": "국가인권위원회",
+    "answer": "ㄴ, ㄷ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 189165,
+    "category1": "3) 대통령의 권한",
+    "category2": "대통령",
+    "answer": "ㄴ",
+    "isTrue": true
+  },
+  {
+    "id": 189166,
+    "category1": "3) 대통령의 권한",
+    "category2": "대통령",
+    "answer": "ㄷ",
+    "isTrue": true
+  },
+  {
+    "id": 189167,
+    "category1": "3) 대통령의 권한",
+    "category2": "대통령",
+    "answer": "ㄱ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 189168,
+    "category1": "3) 대통령의 권한",
+    "category2": "대통령",
+    "answer": "ㄱ, ㄷ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 189169,
+    "category1": "3) 대통령의 권한",
+    "category2": "대통령",
+    "answer": "ㄴ, ㄷ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 221894,
+    "category1": "3. 감사원",
+    "category2": "감사원",
+    "answer": "ㄱ, ㄴ",
+    "isTrue": true
+  },
+  {
+    "id": 221895,
+    "category1": "3. 감사원",
+    "category2": "감사원",
+    "answer": "ㄴ, ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 221896,
+    "category1": "3. 감사원",
+    "category2": "감사원",
+    "answer": "ㄹ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 221897,
+    "category1": "3. 감사원",
+    "category2": "감사원",
+    "answer": "ㅅ, ㅇ",
+    "isTrue": false
+  },
+  {
+    "id": 219472,
+    "category1": "6. 특별심판절차(탄핵심판)",
+    "category2": "탄핵심판",
+    "answer": "1개",
+    "isTrue": true
+  },
+  {
+    "id": 219473,
+    "category1": "6. 특별심판절차(탄핵심판)",
+    "category2": "탄핵심판",
+    "answer": "2개",
+    "isTrue": false
+  },
+  {
+    "id": 219474,
+    "category1": "6. 특별심판절차(탄핵심판)",
+    "category2": "탄핵심판",
+    "answer": "3개",
+    "isTrue": true
+  },
+  {
+    "id": 219475,
+    "category1": "6. 특별심판절차(탄핵심판)",
+    "category2": "탄핵심판",
+    "answer": "4개",
+    "isTrue": true
+  },
+  {
+    "id": 219476,
+    "category1": "6. 특별심판절차(탄핵심판)",
+    "category2": "탄핵심판",
+    "answer": "5개",
+    "isTrue": true
+  },
+  {
+    "id": 203396,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판",
+    "answer": "ㄴ",
+    "isTrue": true
+  },
+  {
+    "id": 203397,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판",
+    "answer": "ㄱ,ㄴ",
+    "isTrue": true
+  },
+  {
+    "id": 203398,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판",
+    "answer": "ㄴ,ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 203399,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판",
+    "answer": "ㄴ,ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 220521,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
+    "answer": "ㄱ, ㄴ, ㄷ",
+    "isTrue": true
+  },
+  {
+    "id": 220522,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
+    "answer": "ㄱ, ㄴ, ㅁ",
+    "isTrue": true
+  },
+  {
+    "id": 220523,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
+    "answer": "ㄴ, ㄷ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 220524,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
+    "answer": "ㄷ, ㄹ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 220525,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
+    "answer": "ㄴ, ㄷ, ㄹ, ㅁ",
+    "isTrue": true
+  },
+  {
+    "id": 225053,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "<통치구조> 권한쟁의심판",
+    "answer": "ㄱ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 225054,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "<통치구조> 권한쟁의심판",
+    "answer": "ㄷ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 225055,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "<통치구조> 권한쟁의심판",
+    "answer": "ㄱ, ㄴ, ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 225056,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "<통치구조> 권한쟁의심판",
+    "answer": "ㄴ, ㄷ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 225057,
+    "category1": "8. 특별심판절차(권한쟁의심판)",
+    "category2": "<통치구조> 권한쟁의심판",
+    "answer": "ㄴ, ㄷ, ㄹ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 139122,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법소원의 적법요건",
+    "answer": "ㄱ, ㄴ",
+    "isTrue": false
+  },
+  {
+    "id": 139123,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법소원의 적법요건",
+    "answer": "ㄱ, ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 139124,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법소원의 적법요건",
+    "answer": "ㄴ, ㄷ",
+    "isTrue": false
+  },
+  {
+    "id": 139125,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법소원의 적법요건",
+    "answer": "ㄷ, ㄹ",
+    "isTrue": true
+  },
+  {
+    "id": 219462,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법재판소 결정의 효력",
+    "answer": "1개",
+    "isTrue": false
+  },
+  {
+    "id": 219463,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법재판소 결정의 효력",
+    "answer": "2개",
+    "isTrue": false
+  },
+  {
+    "id": 219464,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법재판소 결정의 효력",
+    "answer": "3개",
+    "isTrue": false
+  },
+  {
+    "id": 219465,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법재판소 결정의 효력",
+    "answer": "4개",
+    "isTrue": false
+  },
+  {
+    "id": 219466,
+    "category1": "9. 특별심판절차(헌법소원심판)",
+    "category2": "헌법재판소 결정의 효력",
+    "answer": "5개",
+    "isTrue": true
+  },
+  {
+    "id": 225048,
+    "category1": "헌법재판소",
+    "category2": "<통치구조> 헌법재판",
+    "answer": "ㄱ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 225049,
+    "category1": "헌법재판소",
+    "category2": "<통치구조> 헌법재판",
+    "answer": "ㄱ, ㄴ, ㄹ",
+    "isTrue": false
+  },
+  {
+    "id": 225050,
+    "category1": "헌법재판소",
+    "category2": "<통치구조> 헌법재판",
+    "answer": "ㄷ, ㄹ, ㅁ",
+    "isTrue": false
+  },
+  {
+    "id": 225051,
+    "category1": "헌법재판소",
+    "category2": "<통치구조> 헌법재판",
+    "answer": "ㄱ, ㄴ, ㄷ, ㅁ",
+    "isTrue": true
+  },
+  {
+    "id": 225052,
+    "category1": "헌법재판소",
+    "category2": "<통치구조> 헌법재판",
+    "answer": "ㄱ, ㄷ, ㄹ, ㅁ",
+    "isTrue": false
+  }
+]

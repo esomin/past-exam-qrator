@@ -4851,34 +4851,6 @@
     "isTrue": false
   },
   {
-    "id": 150593,
-    "category1": "1) 법원의 조직",
-    "category2": "법원",
-    "answer": "ㄱ,ㄷ",
-    "isTrue": true
-  },
-  {
-    "id": 150594,
-    "category1": "1) 법원의 조직",
-    "category2": "법원",
-    "answer": "ㄴ,ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 150595,
-    "category1": "1) 법원의 조직",
-    "category2": "법원",
-    "answer": "ㄱ,ㄴ,ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 150596,
-    "category1": "1) 법원의 조직",
-    "category2": "법원",
-    "answer": "ㄱ,ㄴ,ㄹ",
-    "isTrue": true
-  },
-  {
     "id": 166686,
     "category1": "1) 법원의 조직",
     "category2": "법원의 사무",
@@ -6298,41 +6270,6 @@
     "category2": "<통치구조> 사법권",
     "answer": "법관이 법관징계위원회의 징계처분에 대하여 불복하려는 경우에는 징계등 처분이 있음을 안 날부터 14일 이내에 전심절차를 거치지 아니하고 대법원에 징계등 처분의 취소를 청구하여야 한다.",
     "isTrue": true
-  },
-  {
-    "id": 224723,
-    "category1": "1) 사법권의 독립 및 한계",
-    "category2": "<보기>에서 사법(司法)의 독립성",
-    "answer": "ㄱ, ㄴ, ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 224724,
-    "category1": "1) 사법권의 독립 및 한계",
-    "category2": "<보기>에서 사법(司法)의 독립성",
-    "answer": "ㄱ, ㄷ, ㄹ",
-    "isTrue": false
-  },
-  {
-    "id": 224725,
-    "category1": "1) 사법권의 독립 및 한계",
-    "category2": "<보기>에서 사법(司法)의 독립성",
-    "answer": "ㄱ, ㄷ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 224726,
-    "category1": "1) 사법권의 독립 및 한계",
-    "category2": "<보기>에서 사법(司法)의 독립성",
-    "answer": "ㄴ, ㄷ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 224727,
-    "category1": "1) 사법권의 독립 및 한계",
-    "category2": "<보기>에서 사법(司法)의 독립성",
-    "answer": "ㄴ, ㄹ, ㅁ",
-    "isTrue": false
   },
   {
     "id": 136227,
@@ -11543,34 +11480,6 @@
     "isTrue": true
   },
   {
-    "id": 220362,
-    "category1": "1. 대통령",
-    "category2": "대통령",
-    "answer": "ㄱ, ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 220363,
-    "category1": "1. 대통령",
-    "category2": "대통령",
-    "answer": "ㄴ, ㄷ",
-    "isTrue": true
-  },
-  {
-    "id": 220364,
-    "category1": "1. 대통령",
-    "category2": "대통령",
-    "answer": "ㄱ, ㄴ, ㄷ",
-    "isTrue": true
-  },
-  {
-    "id": 220365,
-    "category1": "1. 대통령",
-    "category2": "대통령",
-    "answer": "ㄴ, ㄷ, ㄹ",
-    "isTrue": false
-  },
-  {
     "id": 221022,
     "category1": "1. 대통령",
     "category2": "대통령령, 총리령 및 부령",
@@ -11960,41 +11869,6 @@
     "category1": "1. 헌법재판제도의 의의 및 연혁",
     "category2": "헌법재판절차에서 행해지는 가처분",
     "answer": "입국불허결정을 받은 외국인이, &ldquo;출입국관리사무소장&rdquo;을 상대로 제기한 인신보호법상 수용임시 해제청구의 소가 인용되었고, 인신보호 청구의 소 역시 항고심에서 인용된 후 재항고심에 계속 중이며, 난민인정 심사 불회부 결정취소의 소 역시 청구를 인용하는 제1심 판결이 선고되었다면, 비 록 위 소송 제기 후 5개월 이상 변호인을 접견하지 못한 상태라 하더라도 변호인 접견 허가에 관한 임시지위를 정하기 위한 가처분과 관련하여 {@손해를 방지할 긴급한 필요가 인정된다고 보기 어렵다.}",
-    "isTrue": false
-  },
-  {
-    "id": 220511,
-    "category1": "1. 헌법재판제도의 의의 및 연혁",
-    "category2": "헌법재판",
-    "answer": "ㄱ, ㄴ, ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 220512,
-    "category1": "1. 헌법재판제도의 의의 및 연혁",
-    "category2": "헌법재판",
-    "answer": "ㄱ, ㄴ, ㅁ",
-    "isTrue": true
-  },
-  {
-    "id": 220513,
-    "category1": "1. 헌법재판제도의 의의 및 연혁",
-    "category2": "헌법재판",
-    "answer": "ㄱ, ㄷ, ㄹ",
-    "isTrue": false
-  },
-  {
-    "id": 220514,
-    "category1": "1. 헌법재판제도의 의의 및 연혁",
-    "category2": "헌법재판",
-    "answer": "ㄴ, ㄷ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 220515,
-    "category1": "1. 헌법재판제도의 의의 및 연혁",
-    "category2": "헌법재판",
-    "answer": "ㄴ, ㄹ, ㅁ",
     "isTrue": false
   },
   {
@@ -13207,34 +13081,6 @@
     "category2": "지방자치",
     "answer": "지방교육자치는 교육자치라는 영역적 자치와 지방자치라는 지역적 자치가 결합한 형태로서, 교육자치를 지방교육의 특수성을 살리기 위해 지방자치단체의 수준에서 행하는 것을 말한다.",
     "isTrue": true
-  },
-  {
-    "id": 220342,
-    "category1": "2. 정부",
-    "category2": "국가인권위원회",
-    "answer": "ㄱ, ㄴ",
-    "isTrue": true
-  },
-  {
-    "id": 220343,
-    "category1": "2. 정부",
-    "category2": "국가인권위원회",
-    "answer": "ㄱ, ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 220344,
-    "category1": "2. 정부",
-    "category2": "국가인권위원회",
-    "answer": "ㄱ, ㄴ, ㄹ",
-    "isTrue": false
-  },
-  {
-    "id": 220345,
-    "category1": "2. 정부",
-    "category2": "국가인권위원회",
-    "answer": "ㄴ, ㄷ, ㄹ",
-    "isTrue": false
   },
   {
     "id": 220350,
@@ -16702,41 +16548,6 @@
     "isTrue": true
   },
   {
-    "id": 189165,
-    "category1": "3) 대통령의 권한",
-    "category2": "대통령",
-    "answer": "ㄴ",
-    "isTrue": true
-  },
-  {
-    "id": 189166,
-    "category1": "3) 대통령의 권한",
-    "category2": "대통령",
-    "answer": "ㄷ",
-    "isTrue": true
-  },
-  {
-    "id": 189167,
-    "category1": "3) 대통령의 권한",
-    "category2": "대통령",
-    "answer": "ㄱ, ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 189168,
-    "category1": "3) 대통령의 권한",
-    "category2": "대통령",
-    "answer": "ㄱ, ㄷ, ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 189169,
-    "category1": "3) 대통령의 권한",
-    "category2": "대통령",
-    "answer": "ㄴ, ㄷ, ㄹ",
-    "isTrue": false
-  },
-  {
     "id": 191851,
     "category1": "3) 대통령의 권한",
     "category2": "사면",
@@ -16952,34 +16763,6 @@
     "category2": "감사원",
     "answer": "감사원은 필요하다고 인정하거나 국무총리의 요구가 있는 경우에는 민법 또는 상법 외의 다른 법률에 따라 설립되고 그 임원의 전부 또는 일부나 대표자가 국가 또는 지방자치단체에 의하여 임명되거나 임명 승인되는 단체 등의 회계를 검사할 수 있다.",
     "isTrue": true
-  },
-  {
-    "id": 221894,
-    "category1": "3. 감사원",
-    "category2": "감사원",
-    "answer": "ㄱ, ㄴ",
-    "isTrue": true
-  },
-  {
-    "id": 221895,
-    "category1": "3. 감사원",
-    "category2": "감사원",
-    "answer": "ㄴ, ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 221896,
-    "category1": "3. 감사원",
-    "category2": "감사원",
-    "answer": "ㄹ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 221897,
-    "category1": "3. 감사원",
-    "category2": "감사원",
-    "answer": "ㅅ, ㅇ",
-    "isTrue": false
   },
   {
     "id": 225959,
@@ -18403,41 +18186,6 @@
     "isTrue": false
   },
   {
-    "id": 219472,
-    "category1": "6. 특별심판절차(탄핵심판)",
-    "category2": "탄핵심판",
-    "answer": "1개",
-    "isTrue": true
-  },
-  {
-    "id": 219473,
-    "category1": "6. 특별심판절차(탄핵심판)",
-    "category2": "탄핵심판",
-    "answer": "2개",
-    "isTrue": false
-  },
-  {
-    "id": 219474,
-    "category1": "6. 특별심판절차(탄핵심판)",
-    "category2": "탄핵심판",
-    "answer": "3개",
-    "isTrue": true
-  },
-  {
-    "id": 219475,
-    "category1": "6. 특별심판절차(탄핵심판)",
-    "category2": "탄핵심판",
-    "answer": "4개",
-    "isTrue": true
-  },
-  {
-    "id": 219476,
-    "category1": "6. 특별심판절차(탄핵심판)",
-    "category2": "탄핵심판",
-    "answer": "5개",
-    "isTrue": true
-  },
-  {
     "id": 219932,
     "category1": "6. 특별심판절차(탄핵심판)",
     "category2": "탄핵소추심판",
@@ -18753,34 +18501,6 @@
     "isTrue": true
   },
   {
-    "id": 203396,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판",
-    "answer": "ㄴ",
-    "isTrue": true
-  },
-  {
-    "id": 203397,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판",
-    "answer": "ㄱ,ㄴ",
-    "isTrue": true
-  },
-  {
-    "id": 203398,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판",
-    "answer": "ㄴ,ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 203399,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판",
-    "answer": "ㄴ,ㄹ",
-    "isTrue": true
-  },
-  {
     "id": 217968,
     "category1": "8. 특별심판절차(권한쟁의심판)",
     "category2": "권한쟁의심판청구",
@@ -18970,41 +18690,6 @@
     "isTrue": true
   },
   {
-    "id": 220521,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
-    "answer": "ㄱ, ㄴ, ㄷ",
-    "isTrue": true
-  },
-  {
-    "id": 220522,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
-    "answer": "ㄱ, ㄴ, ㅁ",
-    "isTrue": true
-  },
-  {
-    "id": 220523,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
-    "answer": "ㄴ, ㄷ, ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 220524,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
-    "answer": "ㄷ, ㄹ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 220525,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "권한쟁의심판의 당사자가 될 수 있는 국가기관",
-    "answer": "ㄴ, ㄷ, ㄹ, ㅁ",
-    "isTrue": true
-  },
-  {
     "id": 220990,
     "category1": "8. 특별심판절차(권한쟁의심판)",
     "category2": "권한쟁의심판",
@@ -19122,41 +18807,6 @@
     "category2": "권한쟁의심판",
     "answer": "국가기관의 &lsquo;헌법상 권한&rsquo;은 국회의 입법행위를 비롯한 다양한 국가기관의 행위로 침해될 수 있으나, 국가기관의 &lsquo;법률상 권한&rsquo;은 다른 국가기관의 행위로 침해될 수 있음은 별론으로 하고 국회의 입법행위로는 침해될 수 없다.",
     "isTrue": true
-  },
-  {
-    "id": 225053,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "<통치구조> 권한쟁의심판",
-    "answer": "ㄱ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 225054,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "<통치구조> 권한쟁의심판",
-    "answer": "ㄷ, ㄹ",
-    "isTrue": false
-  },
-  {
-    "id": 225055,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "<통치구조> 권한쟁의심판",
-    "answer": "ㄱ, ㄴ, ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 225056,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "<통치구조> 권한쟁의심판",
-    "answer": "ㄴ, ㄷ, ㄹ",
-    "isTrue": true
-  },
-  {
-    "id": 225057,
-    "category1": "8. 특별심판절차(권한쟁의심판)",
-    "category2": "<통치구조> 권한쟁의심판",
-    "answer": "ㄴ, ㄷ, ㄹ, ㅁ",
-    "isTrue": false
   },
   {
     "id": 229542,
@@ -19325,34 +18975,6 @@
     "category2": "헌법재판소법 제68조 제1항에 의한 헌법소원심판청구의 요건",
     "answer": "법령에 대한 헌법소원심판에서 민사소송법 제83조 제1항과 같은 {@공동심판참가신청은 허용되지 않는다.}",
     "isTrue": false
-  },
-  {
-    "id": 139122,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법소원의 적법요건",
-    "answer": "ㄱ, ㄴ",
-    "isTrue": false
-  },
-  {
-    "id": 139123,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법소원의 적법요건",
-    "answer": "ㄱ, ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 139124,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법소원의 적법요건",
-    "answer": "ㄴ, ㄷ",
-    "isTrue": false
-  },
-  {
-    "id": 139125,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법소원의 적법요건",
-    "answer": "ㄷ, ㄹ",
-    "isTrue": true
   },
   {
     "id": 139258,
@@ -21497,41 +21119,6 @@
     "isTrue": true
   },
   {
-    "id": 219462,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법재판소 결정의 효력",
-    "answer": "1개",
-    "isTrue": false
-  },
-  {
-    "id": 219463,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법재판소 결정의 효력",
-    "answer": "2개",
-    "isTrue": false
-  },
-  {
-    "id": 219464,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법재판소 결정의 효력",
-    "answer": "3개",
-    "isTrue": false
-  },
-  {
-    "id": 219465,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법재판소 결정의 효력",
-    "answer": "4개",
-    "isTrue": false
-  },
-  {
-    "id": 219466,
-    "category1": "9. 특별심판절차(헌법소원심판)",
-    "category2": "헌법재판소 결정의 효력",
-    "answer": "5개",
-    "isTrue": true
-  },
-  {
     "id": 219492,
     "category1": "9. 특별심판절차(헌법소원심판)",
     "category2": "헌법재판소법 제68조 제1항에 따른 헌법소원심판에서 청구인의 자기관련성",
@@ -21977,41 +21564,6 @@
     "category1": "통치구조론) 헌법재판소",
     "category2": "재판청구권",
     "answer": "수형자와 소송대리인인 변호사의 접견을 일반 접견에 포함시켜 시간은 30분 이내로, 횟수는 월 4회로 제한한 구 형의 집행 및 수용자의 처우에 관한 법률 시행령 해당 조항들은 입법목적 달성에 필요한 범위를 넘어 수형자와 변호사 사이의 접견권을 지나치게 제한한다고 볼 수 없으므로 {@청구인의 재판청구권을 침해하지 않는다.}",
-    "isTrue": false
-  },
-  {
-    "id": 225048,
-    "category1": "헌법재판소",
-    "category2": "<통치구조> 헌법재판",
-    "answer": "ㄱ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 225049,
-    "category1": "헌법재판소",
-    "category2": "<통치구조> 헌법재판",
-    "answer": "ㄱ, ㄴ, ㄹ",
-    "isTrue": false
-  },
-  {
-    "id": 225050,
-    "category1": "헌법재판소",
-    "category2": "<통치구조> 헌법재판",
-    "answer": "ㄷ, ㄹ, ㅁ",
-    "isTrue": false
-  },
-  {
-    "id": 225051,
-    "category1": "헌법재판소",
-    "category2": "<통치구조> 헌법재판",
-    "answer": "ㄱ, ㄴ, ㄷ, ㅁ",
-    "isTrue": true
-  },
-  {
-    "id": 225052,
-    "category1": "헌법재판소",
-    "category2": "<통치구조> 헌법재판",
-    "answer": "ㄱ, ㄷ, ㄹ, ㅁ",
     "isTrue": false
   },
   {

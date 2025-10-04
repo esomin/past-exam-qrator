@@ -1,0 +1,17 @@
+📊 Total comparisons made: 2,749
+✅ Saved: data/answers_similarity_unique.json
+✅ Saved: data/answers_similarity_removed.json
+📁 Loaded 3149 answers from data/answers.json
+
+📊 === FINAL STATISTICS ===
+✨ Original answers: 3149
+✨ Meaningless answers removed: 64 (2.03%)
+✨ Filtered answers: 3085
+✨ Similar answers removed: 536 (17.37%)
+✨ Final unique answers: 2540
+✨ Similarity groups: 318
+📊 Total removal rate: 19.05%
+📊 Similarity group rate: 12.52%
+📊 Math check: 3149 - 64 - 536 = 2549 (should equal 2540)
+📊 Average similarity in groups: 0.913
+✅ Answer filtering and similarity-based deduplication completed successfully!

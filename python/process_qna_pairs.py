@@ -60,9 +60,10 @@ class QnAPairProcessor:
     
     def strip_p_tag(self, text: Optional[str]) -> str:
         """HTML p 태그를 제거하고 텍스트를 정리"""
-        if not text:
+        if not text or not text.strip():
             return ""
-        return re.sub(r'</?p[^>]*>', '', text).strip()
+        cleaned_text = re.sub(r'</?p[^>]*>', '', text).strip()
+        return cleaned_text if cleaned_text else ""
     
     def normalize_text(self, text: str) -> str:
         """유니코드 정규화"""
