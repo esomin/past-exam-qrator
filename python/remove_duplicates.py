@@ -61,10 +61,8 @@ class DuplicateRemover:
         
         for answer_text, group in answer_groups.items():
             if len(group) == 1:
-                # 중복이 없는 경우 - 유니크 답변에 추가 (중복 개수 1)
-                answer_with_count = group[0].copy()
-                answer_with_count['duplicateCount'] = 1
-                unique_answers.append(answer_with_count)
+                # 중복이 없는 경우 - duplicateCount 속성을 추가하지 않음
+                unique_answers.append(group[0].copy())
             else:
                 # 중복이 있는 경우
                 # 첫 번째 답변을 유니크 답변에 추가 (전체 그룹 크기를 중복 개수로)
@@ -79,6 +77,9 @@ class DuplicateRemover:
                         'survivorAnswer': survivor.get('answer', ''),
                         'duplicates': group[1:]  # 첫 번째를 제외한 나머지
                     })
+        
+        # duplicateCount 큰 순으로 정렬 (duplicateCount가 없는 항목은 맨 뒤로)
+        unique_answers.sort(key=lambda x: x.get('duplicateCount', 0), reverse=True)
         
         return unique_answers, removed_groups
     
