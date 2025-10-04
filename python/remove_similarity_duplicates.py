@@ -316,12 +316,30 @@ class SimilarityDeduplicator:
             unique_answers.append(representative)
             processed_indices.add(i)
         
-        # similarityCount -> category1 -> category2 순으로 정렬
-        unique_answers.sort(key=lambda x: (
-            -x.get('similarityCount', 0),  # similarityCount 내림차순
-            x.get('category1', ''),        # category1 오름차순
-            x.get('category2', '')         # category2 오름차순
-        ))
+        # similarityCount 순서로 category1 우선순위를 결정한 후, category1별로 그룹핑하여 정렬
+        # 1. similarityCount 내림차순으로 정렬하여 category1 우선순위 결정
+        temp_sorted = sorted(unique_answers, key=lambda x: -x.get('similarityCount', 0))
+        
+        # 2. category1 우선순위 순서 결정 (이미 처리된 category1은 제외)
+        category1_order = []
+        seen_categories = set()
+        for answer in temp_sorted:
+            cat1 = answer.get('category1', '')
+            if cat1 and cat1 not in seen_categories:
+                category1_order.append(cat1)
+                seen_categories.add(cat1)
+        
+        # 3. category1 우선순위 -> category2 -> similarityCount 내림차순 순으로 정렬
+        def sort_key(x):
+            cat1 = x.get('category1', '')
+            cat1_priority = category1_order.index(cat1) if cat1 in category1_order else len(category1_order)
+            return (
+                cat1_priority,                    # category1 우선순위 (similarityCount 순서 기준)
+                x.get('category2', ''),           # category2 오름차순
+                -x.get('similarityCount', 0)      # 같은 category 내에서 similarityCount 내림차순
+            )
+        
+        unique_answers.sort(key=sort_key)
         
         similarity_time = time.time() - similarity_start
         total_time = time.time() - start_time
@@ -349,29 +367,32 @@ class SimilarityDeduplicator:
         unique_answers, similar_groups = self.find_similar_groups(filtered_answers)
         
         # similar_groups도 동일한 기준으로 정렬
-        similar_groups.sort(key=lambda x: (
-            -x.get('similarityCount', 0),  # similarityCount 내림차순
-            x.get('category1', ''),        # category1 오름차순
-            x.get('category2', '')         # category2 오름차순
-        ))
+        # unique_answers에서 사용한 category1_order를 재사용
+        temp_sorted_groups = sorted(similar_groups, key=lambda x: -x.get('similarityCount', 0))
+        
+        # category1 우선순위 순서 결정 (similar_groups용)
+        category1_order_groups = []
+        seen_categories_groups = set()
+        for group in temp_sorted_groups:
+            cat1 = group.get('category1', '')
+            if cat1 and cat1 not in seen_categories_groups:
+                category1_order_groups.append(cat1)
+                seen_categories_groups.add(cat1)
+        
+        def sort_key_groups(x):
+            cat1 = x.get('category1', '')
+            cat1_priority = category1_order_groups.index(cat1) if cat1 in category1_order_groups else len(category1_order_groups)
+            return (
+                cat1_priority,                    # category1 우선순위 (similarityCount 순서 기준)
+                x.get('category2', ''),           # category2 오름차순
+                -x.get('similarityCount', 0)      # 같은 category 내에서 similarityCount 내림차순
+            )
+        
+        similar_groups.sort(key=sort_key_groups)
         
         # 결과 저장
         self.save_json_file(unique_answers, 'answers_similarity_unique.json')
         self.save_json_file(similar_groups, 'answers_similarity_removed.json')
-        
-        # category1, category2 순으로 정렬된 파일 추가 생성
-        unique_answers_categorized = sorted(unique_answers, key=lambda x: (
-            x.get('category1', ''),        # category1 오름차순
-            x.get('category2', '')         # category2 오름차순
-        ))
-        
-        similar_groups_categorized = sorted(similar_groups, key=lambda x: (
-            x.get('category1', ''),        # category1 오름차순
-            x.get('category2', '')         # category2 오름차순
-        ))
-        
-        self.save_json_file(unique_answers_categorized, 'answers_similarity_unique_categorized.json')
-        self.save_json_file(similar_groups_categorized, 'answers_similarity_removed_categorized.json')
         
         # 통계 출력
         original_count = len(self.load_answers())  # 원본 데이터 개수

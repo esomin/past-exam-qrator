@@ -17,7 +17,7 @@ interface NestedOutput {
   };
 }
 
-const inputData: QuestionData[] = JSON.parse(fs.readFileSync('./python/data/answers_similarity_unique_categorized.json', 'utf-8'));
+const inputData: QuestionData[] = JSON.parse(fs.readFileSync('./python/data/answers_similarity_unique.json', 'utf-8'));
 const nestedOutput: NestedOutput = {};
 
 inputData.forEach((item: QuestionData) => {
