@@ -27,7 +27,7 @@ class SimilarityDeduplicator:
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
     
     def load_answers(self) -> List[Dict[str, Any]]:
-        """answers_unique.json 파일에서 데이터 로드"""
+        """answers.json 파일에서 데이터 로드"""
         try:
             with open(self.input_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -278,13 +278,19 @@ class SimilarityDeduplicator:
         
         # 통계 출력
         total_removed = sum(len(group['removedAnswers']) for group in similar_groups)
+        valid_answers_count = len([a for a in answers if a.get('answer', '').strip()])
+        invalid_answers_count = len(answers) - valid_answers_count
+        
         removal_rate = (total_removed / len(answers)) * 100 if len(answers) > 0 else 0
         similarity_group_rate = (len(similar_groups) / len(unique_answers)) * 100 if len(unique_answers) > 0 else 0
         
         print(f'✨ Original answers: {len(answers)}')
+        print(f'✨ Valid answers (processed): {valid_answers_count}')
+        print(f'✨ Invalid/empty answers (skipped): {invalid_answers_count}')
         print(f'✨ Similarity-unique answers: {len(unique_answers)}')
         print(f'✨ Removed by similarity: {total_removed}')
         print(f'✨ Similarity groups: {len(similar_groups)}')
+        print(f'📊 Math check: {valid_answers_count} - {total_removed} = {valid_answers_count - total_removed} (should equal {len(unique_answers)})')
         print(f'📊 Similarity removal rate: {removal_rate:.2f}%')
         print(f'📊 Similarity group rate: {similarity_group_rate:.2f}%')
         
@@ -311,7 +317,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='TF-IDF + 코사인 유사도 기반 중복 제거')
-    parser.add_argument('--input', '-i', default='data/answers_unique.json', help='입력 파일 경로')
+    parser.add_argument('--input', '-i', default='data/answers.json', help='입력 파일 경로')
     parser.add_argument('--output', '-o', default='data', help='출력 디렉토리')
     parser.add_argument('--threshold', '-t', type=float, default=0.8, help='유사도 임계값 (0.0-1.0)')
     
