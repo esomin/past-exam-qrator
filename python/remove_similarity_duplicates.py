@@ -8,10 +8,39 @@ import json
 import os
 import re
 import math
+import sys
+import time
+from datetime import datetime
 from typing import List, Dict, Any, Tuple
 from pathlib import Path
 from collections import Counter
 from filter_answers import AnswerFilter
+
+
+class LogCapture:
+    """로그를 캡처하고 파일로 저장하는 클래스"""
+    
+    def __init__(self, log_file: str):
+        self.log_file = log_file
+        self.logs = []
+        self.original_stdout = sys.stdout
+        
+    def write(self, text: str):
+        """stdout에 쓰여지는 내용을 캡처"""
+        self.original_stdout.write(text)
+        self.logs.append(text)
+        
+    def flush(self):
+        """flush 메서드"""
+        self.original_stdout.flush()
+        
+    def save_logs(self):
+        """캡처된 로그를 파일로 저장"""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(self.log_file, 'w', encoding='utf-8') as f:
+            f.write(f"=== Similarity Deduplication Log - {timestamp} ===\n\n")
+            f.write(''.join(self.logs))
+        print(f"📝 Log saved: {self.log_file}")
 
 
 class SimilarityDeduplicator:
@@ -22,6 +51,9 @@ class SimilarityDeduplicator:
         self.output_dir = output_dir
         self.threshold = threshold
         self.ensure_output_dir()
+        
+        # 로그 캡처 설정
+        self.log_capture = LogCapture(os.path.join(output_dir, 'similarity_deduplication.log'))
         
         # 답변 필터링 인스턴스 생성
         self.answer_filter = AnswerFilter(input_file=input_file, output_dir=output_dir)
@@ -169,11 +201,15 @@ class SimilarityDeduplicator:
     
     def find_similar_groups(self, answers: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """유사한 답변들을 찾아서 그룹화"""
+        start_time = time.time()
         print(f"🔍 Finding similar answers with threshold {self.threshold}...")
         
         # 전처리
+        preprocess_start = time.time()
         answer_texts = [answer.get('answer', '') for answer in answers]
         processed_texts = [self.preprocess_text(text) for text in answer_texts]
+        preprocess_time = time.time() - preprocess_start
+        print(f"⏱️ Text preprocessing completed in {preprocess_time:.2f} seconds")
         
         # 빈 텍스트 필터링
         valid_indices = [i for i, tokens in enumerate(processed_texts) if tokens]
@@ -186,6 +222,7 @@ class SimilarityDeduplicator:
         print(f"📊 Processing {len(valid_answers)} valid answers...")
         
         # TF-IDF 계산
+        tfidf_start = time.time()
         print("📊 Calculating TF-IDF vectors...")
         idf_dict = self.calculate_idf(valid_processed)
         vocabulary = sorted(idf_dict.keys())
@@ -200,7 +237,11 @@ class SimilarityDeduplicator:
             vector = self.create_tfidf_vector(tf_dict, idf_dict, vocabulary)
             tfidf_vectors.append(vector)
         
+        tfidf_time = time.time() - tfidf_start
+        print(f"⏱️ TF-IDF vectorization completed in {tfidf_time:.2f} seconds")
+        
         # 유사도 계산 및 그룹화
+        similarity_start = time.time()
         print("🔗 Grouping similar answers...")
         processed_indices = set()
         unique_answers = []
@@ -247,17 +288,30 @@ class SimilarityDeduplicator:
                 representative['similarityCount'] = len(current_group)
                 representative['avgSimilarity'] = sum(current_similarities) / len(current_similarities) if current_similarities else 0
                 
-                # 제거된 답변들 정보
-                removed_answers = [valid_answers[idx] for idx in current_group if idx != representative_idx]
+                # 제거된 답변들 정보 (question 속성 포함)
+                removed_answers = []
+                for idx in current_group:
+                    if idx != representative_idx:
+                        removed_answer = valid_answers[idx].copy()
+                        # question 속성이 없으면 빈 문자열로 설정
+                        if 'question' not in removed_answer:
+                            removed_answer['question'] = ''
+                        removed_answers.append(removed_answer)
+                
                 similar_groups.append({
                     'representativeId': representative.get('id'),
                     'category1': representative.get('category1', ''),
                     'category2': representative.get('category2', ''),
+                    'question': representative.get('question', ''),
                     'representativeAnswer': representative.get('answer', ''),
                     'similarityCount': len(current_group),
                     'avgSimilarity': representative['avgSimilarity'],
                     'removedAnswers': removed_answers
                 })
+            
+            # question 속성이 없으면 빈 문자열로 설정
+            if 'question' not in representative:
+                representative['question'] = ''
             
             unique_answers.append(representative)
             processed_indices.add(i)
@@ -269,23 +323,36 @@ class SimilarityDeduplicator:
             x.get('category2', '')         # category2 오름차순
         ))
         
+        similarity_time = time.time() - similarity_start
+        total_time = time.time() - start_time
+        
         print(f"📊 Total comparisons made: {total_comparisons:,}")
+        print(f"⏱️ Similarity grouping completed in {similarity_time:.2f} seconds")
+        print(f"⏱️ Total similarity detection time: {total_time:.2f} seconds")
+        
         return unique_answers, similar_groups
     
     def process_and_save(self) -> None:
         """답변 필터링 후 유사도 기반 중복 제거 처리 및 파일 저장"""
+        total_start_time = time.time()
         print('🚀 Starting answer filtering and similarity-based deduplication...')
         
         # 1단계: 답변 필터링 (자모 나열, 숫자개 등 제거)
+        step1_start = time.time()
         print('📋 Step 1: Filtering meaningless answers...')
         filtered_answers, removed_answers = self.answer_filter.run()
+        step1_time = time.time() - step1_start
         
         print(f'📊 Filtered out {len(removed_answers)} meaningless answers')
         print(f'📊 Proceeding with {len(filtered_answers)} valid answers')
+        print(f'⏱️ Step 1 completed in {step1_time:.2f} seconds')
         
         # 2단계: 유사도 기반 중복 제거
+        step2_start = time.time()
         print('🔍 Step 2: Removing similar duplicates...')
         unique_answers, similar_groups = self.find_similar_groups(filtered_answers)
+        step2_time = time.time() - step2_start
+        print(f'⏱️ Step 2 completed in {step2_time:.2f} seconds')
         
         # similar_groups도 동일한 기준으로 정렬
         similar_groups.sort(key=lambda x: (
@@ -294,9 +361,20 @@ class SimilarityDeduplicator:
             x.get('category2', '')         # category2 오름차순
         ))
         
+        # similarityCount가 3인 데이터 별도 추출 (category1, category2로만 정렬)
+        similarity_count_3 = [answer for answer in unique_answers if answer.get('similarityCount', 0) == 3]
+        similarity_count_3.sort(key=lambda x: (
+            x.get('category1', ''),        # category1 오름차순
+            x.get('category2', '')         # category2 오름차순
+        ))
+        
         # 결과 저장
+        save_start = time.time()
         self.save_json_file(unique_answers, 'answers_similarity_unique.json')
         self.save_json_file(similar_groups, 'answers_similarity_removed.json')
+        self.save_json_file(similarity_count_3, 'answers_similarity_count_3.json')
+        save_time = time.time() - save_start
+        print(f'⏱️ File saving completed in {save_time:.2f} seconds')
         
         # 통계 출력
         original_count = len(self.load_answers())  # 원본 데이터 개수
@@ -317,6 +395,7 @@ class SimilarityDeduplicator:
         print(f'✨ Similar answers removed: {similarity_removed} ({similarity_removal_rate:.2f}%)')
         print(f'✨ Final unique answers: {final_count}')
         print(f'✨ Similarity groups: {len(similar_groups)}')
+        print(f'✨ Similarity count 3 answers: {len(similarity_count_3)}')
         print(f'📊 Total removal rate: {total_removal_rate:.2f}%')
         print(f'📊 Similarity group rate: {similarity_group_rate:.2f}%')
         print(f'📊 Math check: {original_count} - {meaningless_removed} - {similarity_removed} = {original_count - meaningless_removed - similarity_removed} (should equal {final_count})')
@@ -325,18 +404,43 @@ class SimilarityDeduplicator:
         if similar_groups:
             avg_similarity = sum(group['avgSimilarity'] for group in similar_groups) / len(similar_groups)
             print(f'📊 Average similarity in groups: {avg_similarity:.3f}')
+        
+        # 전체 처리시간
+        total_time = time.time() - total_start_time
+        print(f'\n⏱️ === PROCESSING TIME SUMMARY ===')
+        print(f'⏱️ Step 1 (Filtering): {step1_time:.2f} seconds')
+        print(f'⏱️ Step 2 (Similarity): {step2_time:.2f} seconds')
+        print(f'⏱️ File Saving: {save_time:.2f} seconds')
+        print(f'⏱️ Total Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
     
     def run(self) -> None:
         """답변 필터링 및 유사도 기반 중복 제거 실행"""
-        print('🚀 Starting Answer Filtering and Similarity-based Duplicate Removal')
+        # 로그 캡처 시작
+        sys.stdout = self.log_capture
         
         try:
+            start_time = time.time()
+            start_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f'🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at {start_datetime}')
+            
             self.process_and_save()
-            print('✅ Answer filtering and similarity-based deduplication completed successfully!')
+            
+            end_time = time.time()
+            end_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            total_runtime = end_time - start_time
+            
+            print(f'✅ Answer filtering and similarity-based deduplication completed successfully!')
+            print(f'🏁 Process finished at {end_datetime}')
+            print(f'⏱️ Total Runtime: {total_runtime:.2f} seconds ({total_runtime/60:.2f} minutes)')
             
         except Exception as error:
-            print(f'❌ Answer filtering and similarity-based deduplication failed: {error}')
+            error_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f'❌ Answer filtering and similarity-based deduplication failed at {error_time}: {error}')
             raise
+        finally:
+            # 로그 캡처 종료 및 저장
+            sys.stdout = self.log_capture.original_stdout
+            self.log_capture.save_logs()
 
 
 def main():

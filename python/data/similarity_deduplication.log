@@ -1,0 +1,81 @@
+=== Similarity Deduplication Log - 2025-10-04 16:55:13 ===
+
+🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at 2025-10-04 16:54:50
+🚀 Starting answer filtering and similarity-based deduplication...
+📋 Step 1: Filtering meaningless answers...
+전체 3149개 → 남김 3085 / 제거 64
+📊 Filtered out 64 meaningless answers
+📊 Proceeding with 3085 valid answers
+⏱️ Step 1 completed in 0.03 seconds
+🔍 Step 2: Removing similar duplicates...
+🔍 Finding similar answers with threshold 0.8...
+⏱️ Text preprocessing completed in 0.05 seconds
+📊 Processing 3076 valid answers...
+📊 Calculating TF-IDF vectors...
+📚 Vocabulary size: 12060
+   Vectorizing... 0/3076
+   Vectorizing... 500/3076
+   Vectorizing... 1000/3076
+   Vectorizing... 1500/3076
+   Vectorizing... 2000/3076
+   Vectorizing... 2500/3076
+   Vectorizing... 3000/3076
+⏱️ TF-IDF vectorization completed in 11.60 seconds
+🔗 Grouping similar answers...
+   Processing... 0/3076 (0 groups found)
+   Processing... 100/3076 (84 groups found)
+   Processing... 200/3076 (166 groups found)
+   Processing... 300/3076 (266 groups found)
+   Processing... 400/3076 (360 groups found)
+   Processing... 500/3076 (437 groups found)
+   Processing... 600/3076 (521 groups found)
+   Processing... 800/3076 (687 groups found)
+   Processing... 1000/3076 (815 groups found)
+   Processing... 1100/3076 (903 groups found)
+   Processing... 1200/3076 (993 groups found)
+   Processing... 1300/3076 (1075 groups found)
+   Processing... 1400/3076 (1155 groups found)
+   Processing... 1500/3076 (1245 groups found)
+   Processing... 1600/3076 (1324 groups found)
+   Processing... 1800/3076 (1490 groups found)
+   Processing... 2000/3076 (1661 groups found)
+   Processing... 2200/3076 (1822 groups found)
+   Processing... 2300/3076 (1898 groups found)
+   Processing... 2400/3076 (1966 groups found)
+   Processing... 2500/3076 (2049 groups found)
+   Processing... 2600/3076 (2129 groups found)
+   Processing... 2700/3076 (2212 groups found)
+   Processing... 2800/3076 (2298 groups found)
+   Processing... 2900/3076 (2384 groups found)
+   Processing... 3000/3076 (2474 groups found)
+📊 Total comparisons made: 2,749
+⏱️ Similarity grouping completed in 11.30 seconds
+⏱️ Total similarity detection time: 22.95 seconds
+⏱️ Step 2 completed in 23.16 seconds
+✅ Saved: data/answers_similarity_unique.json
+✅ Saved: data/answers_similarity_removed.json
+✅ Saved: data/answers_similarity_count_3.json
+⏱️ File saving completed in 0.02 seconds
+📁 Loaded 3149 answers from data/answers.json
+
+📊 === FINAL STATISTICS ===
+✨ Original answers: 3149
+✨ Meaningless answers removed: 64 (2.03%)
+✨ Filtered answers: 3085
+✨ Similar answers removed: 536 (17.37%)
+✨ Final unique answers: 2540
+✨ Similarity groups: 318
+✨ Similarity count 3 answers: 63
+📊 Total removal rate: 19.05%
+📊 Similarity group rate: 12.52%
+📊 Math check: 3149 - 64 - 536 = 2549 (should equal 2540)
+📊 Average similarity in groups: 0.913
+
+⏱️ === PROCESSING TIME SUMMARY ===
+⏱️ Step 1 (Filtering): 0.03 seconds
+⏱️ Step 2 (Similarity): 23.16 seconds
+⏱️ File Saving: 0.02 seconds
+⏱️ Total Processing Time: 23.22 seconds (0.39 minutes)
+✅ Answer filtering and similarity-based deduplication completed successfully!
+🏁 Process finished at 2025-10-04 16:55:13
+⏱️ Total Runtime: 23.22 seconds (0.39 minutes)

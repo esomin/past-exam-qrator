@@ -31,6 +31,7 @@ def generate_questions_and_answers(qna_pairs: List[Dict[str, Any]], output_dir: 
                 "id": answer["id"],
                 "category1": qna["category1"],
                 "category2": qna["category2"],
+                "question": qna["question"],
                 "answer": answer["answer"],
                 "isTrue": answer["isTrue"]
             }
