@@ -47,7 +47,7 @@ export const processQnAPairs = (qnaArray: Question[]): QnAPair[] => {
       answers: q.answerSet.map(answer => ({
         id: answer.id,
         answer: answer.title,
-        isCorrect: answer.answerKind === "O",
+        isAnswer: answer.answerKind === "O",
         isTrue: q.titleType === "POSITIVE" ? answer.answerKind === "O" : answer.answerKind === "X"
       }))
     }));

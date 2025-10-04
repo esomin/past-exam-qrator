@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Q&A 데이터 처리 파이프라인
-data/a.json 파일을 읽어서 여러 형태의 output 파일들을 생성합니다.
+Q&A 쌍 데이터 처리 모듈
+Q&A 데이터에서 질문-답변 쌍을 생성하여 qna_pairs.json 파일을 생성합니다.
 """
 
 import json
@@ -12,8 +12,8 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 
-class QnAProcessor:
-    """Q&A 데이터 처리 클래스"""
+class QnAPairProcessor:
+    """Q&A 쌍 데이터 처리 클래스"""
     
     def __init__(self, input_file: str = "data/input.json", output_dir: str = "data"):
         self.input_file = input_file
@@ -64,12 +64,6 @@ class QnAProcessor:
             return ""
         return re.sub(r'</?p[^>]*>', '', text).strip()
     
-    def strip_all_html(self, text: Optional[str]) -> str:
-        """모든 HTML 태그를 제거"""
-        if not text:
-            return ""
-        return re.sub(r'<[^>]*>', '', text).strip()
-    
     def normalize_text(self, text: str) -> str:
         """유니코드 정규화"""
         return unicodedata.normalize("NFKC", text).strip()
@@ -94,23 +88,6 @@ class QnAProcessor:
             subject = normalized_text
         return self.clean_prefix(subject)
     
-    def process_questions(self, qna_array: List[Dict[str, Any]]) -> List[str]:
-        """질문 데이터를 추출하고 필터링"""
-        return [
-            q['title'] 
-            for q in qna_array 
-            if q.get('titleType') != "ETC"
-        ]
-    
-    def process_answers(self, qna_array: List[Dict[str, Any]]) -> List[str]:
-        """답변 데이터를 추출하고 HTML을 정리"""
-        answers = []
-        for q in qna_array:
-            if q.get('titleType') != "ETC":
-                for answer in q.get('answerSet', []):
-                    answers.append(self.strip_p_tag(answer.get('title', '')))
-        return answers
-    
     def process_qna_pairs(self, qna_array: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Q&A 쌍 데이터를 생성 (extractQna.ts의 transform 함수와 동일한 형태 + 키워드 추출)"""
         # ETC 타입 필터링 및 카테고리별 정렬
@@ -126,8 +103,8 @@ class QnAProcessor:
                 'answers': [
                     {
                         'id': answer['id'],
-                        'answer': answer.get('title', ''),
-                        'isCorrect': answer.get('answerKind') == "O",
+                        'answer': self.strip_p_tag(answer.get('title', '')),
+                        'isAnswer': answer.get('answerKind') == "O",
                         'isTrue': (answer.get('answerKind') == "O" if q.get('titleType') == "POSITIVE" 
                                  else answer.get('answerKind') == "X")
                     }
@@ -137,20 +114,6 @@ class QnAProcessor:
             for q in sorted_data
         ]
     
-    def process_and_save_questions(self, qna_array: List[Dict[str, Any]]) -> None:
-        """질문 처리 및 파일 저장"""
-        print('📊 Processing questions...')
-        questions = self.process_questions(qna_array)
-        self.save_json_file(questions, 'questions.json')
-        print(f'✨ Processed {len(questions)} questions')
-    
-    def process_and_save_answers(self, qna_array: List[Dict[str, Any]]) -> None:
-        """답변 처리 및 파일 저장"""
-        print('💬 Processing answers...')
-        answers = self.process_answers(qna_array)
-        self.save_json_file(answers, 'answers.json')
-        print(f'✨ Processed {len(answers)} answers')
-    
     def process_and_save_qna_pairs(self, qna_array: List[Dict[str, Any]]) -> None:
         """Q&A 쌍 처리 및 파일 저장"""
         print('🔄 Processing Q&A pairs...')
@@ -158,31 +121,24 @@ class QnAProcessor:
         self.save_json_file(qna_pairs, 'qna_pairs.json')
         print(f'✨ Processed {len(qna_pairs)} Q&A pairs')
     
-    def run_pipeline(self) -> None:
-        """전체 파이프라인 실행"""
-        print('🚀 Starting Q&A Processing Pipeline')
+    def run(self) -> None:
+        """Q&A 쌍 처리 실행"""
+        print('🚀 Starting Q&A Pair Processing')
         
         try:
-            # 데이터 로드
             qna_data = self.load_data()
-            
-            # 각 프로세서 실행
-            self.process_and_save_questions(qna_data)
-            self.process_and_save_answers(qna_data)
             self.process_and_save_qna_pairs(qna_data)
-            
-            print('✅ Pipeline completed successfully!')
-            print('📁 Check output files in ./data directory')
+            print('✅ Q&A pair processing completed successfully!')
             
         except Exception as error:
-            print(f'❌ Pipeline failed: {error}')
+            print(f'❌ Q&A pair processing failed: {error}')
             raise
 
 
 def main():
     """메인 함수"""
-    processor = QnAProcessor()
-    processor.run_pipeline()
+    processor = QnAPairProcessor()
+    processor.run()
 
 
 if __name__ == "__main__":

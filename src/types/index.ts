@@ -35,7 +35,7 @@ export interface QnAPair {
   answers: {
     id: number;
     answer: string;
-    isCorrect: boolean;
+    isAnswer: boolean;
     isTrue: boolean;
   }[];
 }
