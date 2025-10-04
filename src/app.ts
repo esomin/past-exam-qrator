@@ -4,28 +4,41 @@ interface QuestionData {
   id: number;
   category1: string;
   category2: string;
-  category3?: string;
   question: string;
   answer: string;
   isTrue: boolean;
   similarityCount: number;
   avgSimilarity: number;
-  topic: string;
 }
 
 interface NestedOutput {
-  [category3: string]: QuestionData[];
+  [category1: string]: {
+    [category2: string]: QuestionData[];
+  };
 }
 
-const inputData: QuestionData[] = JSON.parse(fs.readFileSync('./python/data/answers_with_topics_sorted.json', 'utf-8'));
+const inputData: QuestionData[] = JSON.parse(fs.readFileSync('./python/data/answers_similarity_unique_categorized.json', 'utf-8'));
 const nestedOutput: NestedOutput = {};
 
 inputData.forEach((item: QuestionData) => {
-  const category3Key = item.category3 || 'uncategorized';
-  if (!nestedOutput[category3Key]) {
-    nestedOutput[category3Key] = [];
+  const category1Key = item.category1;
+  const category2Key = item.category2;
+  
+  if (!nestedOutput[category1Key]) {
+    nestedOutput[category1Key] = {};
   }
-  nestedOutput[category3Key].push(item);  
+  
+  if (!nestedOutput[category1Key][category2Key]) {
+    nestedOutput[category1Key][category2Key] = [];
+  }
+  
+  nestedOutput[category1Key][category2Key].push(item);
 });
 
-fs.writeFileSync('./python/data/answers_nested_by_category3.json', JSON.stringify(nestedOutput, null, 2));
+fs.writeFileSync('./python/data/answers_nested_by_categories.json', JSON.stringify(nestedOutput, null, 2));
+
+console.log('Successfully created nested JSON structure by category1 and category2');
+console.log(`Total categories: ${Object.keys(nestedOutput).length}`);
+Object.keys(nestedOutput).forEach(cat1 => {
+  console.log(`${cat1}: ${Object.keys(nestedOutput[cat1]).length} subcategories`);
+});
