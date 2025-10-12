@@ -75,8 +75,8 @@ def main():
             qna_pairs = json.load(f)
         answers = convert_qna_pairs_to_answers(qna_pairs)
         
-        # 4단계: 답변 필터링 및 유사도 기반 중복 제거
-        print('\nStep 4: Filtering and removing similar duplicates...')
+        # 4단계: 유사도 기반 중복 제거
+        print('\nStep 4: Removing similar duplicates...')
         deduplicator = SimilarityDeduplicator(
             input_file="data/answers.json",
             output_dir="data",
