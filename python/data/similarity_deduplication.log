@@ -1,6 +1,6 @@
-=== Similarity Deduplication Log - 2025-10-04 19:31:55 ===
+=== Similarity Deduplication Log - 2025-10-12 17:38:27 ===
 
-🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at 2025-10-04 19:31:33
+🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at 2025-10-12 17:38:05
 🚀 Starting answer filtering and similarity-based deduplication...
 📋 Step 1: Filtering meaningless answers...
 전체 3149개 → 남김 3085 / 제거 64
@@ -19,7 +19,7 @@
    Vectorizing... 2000/3076
    Vectorizing... 2500/3076
    Vectorizing... 3000/3076
-⏱️ TF-IDF vectorization completed in 9.95 seconds
+⏱️ TF-IDF vectorization completed in 10.14 seconds
 🔗 Grouping similar answers...
    Processing... 0/3076 (0 groups found)
    Processing... 100/3076 (84 groups found)
@@ -48,12 +48,10 @@
    Processing... 2900/3076 (2384 groups found)
    Processing... 3000/3076 (2474 groups found)
 📊 Total comparisons made: 2,749
-⏱️ Similarity grouping completed in 11.37 seconds
-⏱️ Total similarity detection time: 21.37 seconds
+⏱️ Similarity grouping completed in 11.76 seconds
+⏱️ Total similarity detection time: 21.94 seconds
 ✅ Saved: data/answers_similarity_unique.json
 ✅ Saved: data/answers_similarity_removed.json
-✅ Saved: data/answers_similarity_unique_categorized.json
-✅ Saved: data/answers_similarity_removed_categorized.json
 📁 Loaded 3149 answers from data/answers.json
 
 📊 === FINAL STATISTICS ===
@@ -68,7 +66,7 @@
 📊 Math check: 3149 - 64 - 536 = 2549 (should equal 2540)
 📊 Average similarity in groups: 0.913
 
-⏱️ Total Processing Time: 21.64 seconds (0.36 minutes)
+⏱️ Total Processing Time: 22.23 seconds (0.37 minutes)
 ✅ Answer filtering and similarity-based deduplication completed successfully!
-🏁 Process finished at 2025-10-04 19:31:55
-⏱️ Total Runtime: 21.64 seconds (0.36 minutes)
+🏁 Process finished at 2025-10-12 17:38:27
+⏱️ Total Runtime: 22.23 seconds (0.37 minutes)

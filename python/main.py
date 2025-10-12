@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
 Q&A 쌍 처리 메인 파이프라인
-Q&A 쌍 처리 모듈을 실행하여 qna_pairs.json, questions.json, answers.json 파일을 생성합니다.
+input.json에서 시작하여 전체 처리 과정을 거쳐 최종 결과물까지 생성합니다.
+- qna_pairs.json, questions.json, answers.json 생성
+- 답변 필터링 및 유사도 기반 중복 제거
+- 최종 출력: answers_similarity_unique.json, answers_similarity_removed.json
 """
 
 import json
 import os
 from typing import List, Dict, Any
 from process_qna_pairs import QnAPairProcessor
+from remove_similarity_duplicates import SimilarityDeduplicator
 
 
 def generate_questions_and_answers(qna_pairs: List[Dict[str, Any]], output_dir: str = "data") -> None:
@@ -51,15 +55,18 @@ def generate_questions_and_answers(qna_pairs: List[Dict[str, Any]], output_dir: 
 
 
 def main():
-    """메인 함수 - Q&A 쌍 처리 및 분리된 파일 생성"""
-    print('🚀 Starting Q&A Processing Pipeline')
+    """메인 함수 - 전체 Q&A 처리 파이프라인 실행"""
+    print('🚀 Starting Complete Q&A Processing Pipeline')
+    print('📋 Pipeline: input.json → qna_pairs.json → questions.json, answers.json → similarity deduplication')
     
     try:
-        # Q&A 쌍 처리
+        # 1단계: Q&A 쌍 처리
+        print('\n📋 Step 1: Processing Q&A pairs...')
         qna_pair_processor = QnAPairProcessor()
         qna_pair_processor.run()
         
-        # qna_pairs.json 파일 로드
+        # 2단계: qna_pairs.json 파일 로드 및 분리된 파일 생성
+        print('\n📋 Step 2: Generating questions.json and answers.json...')
         qna_pairs_path = os.path.join("data", "qna_pairs.json")
         with open(qna_pairs_path, 'r', encoding='utf-8') as f:
             qna_pairs = json.load(f)
@@ -67,11 +74,26 @@ def main():
         # questions.json과 answers.json 생성
         generate_questions_and_answers(qna_pairs)
         
-        print('✅ All processing completed successfully!')
-        print('📁 Check qna_pairs.json, questions.json, answers.json in ./data directory')
+        # 3단계: 답변 필터링 및 유사도 기반 중복 제거
+        print('\n📋 Step 3: Filtering and removing similar duplicates...')
+        deduplicator = SimilarityDeduplicator(
+            input_file="data/answers.json",
+            output_dir="data",
+            threshold=0.8
+        )
+        deduplicator.run()
+        
+        print('\n✅ Complete pipeline processing finished successfully!')
+        print('📁 Final outputs:')
+        print('   - data/qna_pairs.json (Q&A pairs)')
+        print('   - data/questions.json (Questions only)')
+        print('   - data/answers.json (All answers)')
+        print('   - data/answers_similarity_unique.json (Final unique answers)')
+        print('   - data/answers_similarity_removed.json (Removed similar groups)')
+        print('   - data/similarity_deduplication.log (Processing log)')
         
     except Exception as error:
-        print(f'❌ Processing failed: {error}')
+        print(f'❌ Pipeline processing failed: {error}')
         raise
 
 
