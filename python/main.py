@@ -11,6 +11,7 @@ import os
 from typing import List, Dict, Any
 from add_category2_to_qn import create_qna_pairs_with_category2
 from remove_similarity_duplicates import SimilarityDeduplicator
+from create_nested_structure import process_both_files
 
 
 def create_qna_pairs_file(input_data: List[Dict[str, Any]], output_dir: str = "data") -> str:
@@ -84,12 +85,18 @@ def main():
         )
         deduplicator.run()
         
+        # 5단계: Nested 구조 생성
+        print('\nStep 5: Creating nested structures by categories...')
+        process_both_files()
+        
         print('\nComplete pipeline processing finished successfully!')
         print('Final outputs:')
         print('   - data/qna_pairs.json (Q&A pairs with category2)')
         print('   - data/answers.json (All answers - intermediate file)')
         print('   - data/answers_similarity_unique.json (Final unique answers)')
         print('   - data/answers_similarity_removed.json (Removed similar groups)')
+        print('   - data/answers_similarity_unique_nested.json (Nested unique answers)')
+        print('   - data/answers_similarity_removed_nested.json (Nested removed groups)')
         print('   - data/similarity_deduplication.log (Processing log)')
         
     except Exception as error:
