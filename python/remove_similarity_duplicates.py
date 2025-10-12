@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Tuple
 from pathlib import Path
 from collections import Counter
-from filter_answers import AnswerFilter
+from remove_meaningless_ans import AnswerFilter
 
 
 class LogCapture:
@@ -22,25 +22,62 @@ class LogCapture:
     
     def __init__(self, log_file: str):
         self.log_file = log_file
-        self.logs = []
+        self.final_stats = []
         self.original_stdout = sys.stdout
+        self.capturing_stats = False
         
     def write(self, text: str):
         """stdout에 쓰여지는 내용을 캡처"""
-        self.original_stdout.write(text)
-        self.logs.append(text)
+        # 이모지 제거
+        clean_text = self.remove_emojis(text)
+        self.original_stdout.write(clean_text)
+        
+        # final statistics 부분만 캡처
+        if "=== FINAL STATISTICS ===" in text:
+            self.capturing_stats = True
+        
+        if self.capturing_stats:
+            self.final_stats.append(clean_text)
+            
+        # Total Runtime까지 캡처하면 종료
+        if "Total Runtime:" in text:
+            self.capturing_stats = False
         
     def flush(self):
         """flush 메서드"""
         self.original_stdout.flush()
+    
+    def remove_emojis(self, text: str) -> str:
+        """텍스트에서 이모지 제거"""
+        emoji_map = {
+            '🚀': '',
+            '📋': '',
+            '📁': '',
+            '❌': '',
+            '✅': '',
+            '🔄': '',
+            '✨': '',
+            '📊': '',
+            '🔍': '',
+            '⏱️': '',
+            '📚': '',
+            '🔗': '',
+            '🏁': '',
+            '📝': ''
+        }
+        
+        for emoji, replacement in emoji_map.items():
+            text = text.replace(emoji, replacement)
+        
+        return text
         
     def save_logs(self):
-        """캡처된 로그를 파일로 저장"""
+        """final statistics만 파일로 저장"""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(self.log_file, 'w', encoding='utf-8') as f:
-            f.write(f"=== Similarity Deduplication Log - {timestamp} ===\n\n")
-            f.write(''.join(self.logs))
-        print(f"📝 Log saved: {self.log_file}")
+            f.write(f"=== Similarity Deduplication Final Statistics - {timestamp} ===\n\n")
+            f.write(''.join(self.final_stats))
+        print(f"Log saved: {self.log_file}")
 
 
 class SimilarityDeduplicator:
@@ -67,13 +104,13 @@ class SimilarityDeduplicator:
         try:
             with open(self.input_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            print(f"📁 Loaded {len(data)} answers from {self.input_file}")
+            print(f"Loaded {len(data)} answers from {self.input_file}")
             return data
         except FileNotFoundError:
-            print(f"❌ File not found: {self.input_file}")
+            print(f"File not found: {self.input_file}")
             raise
         except json.JSONDecodeError as e:
-            print(f"❌ JSON decode error: {e}")
+            print(f"JSON decode error: {e}")
             raise
     
     def save_json_file(self, data: Any, filename: str) -> None:
@@ -81,7 +118,7 @@ class SimilarityDeduplicator:
         filepath = os.path.join(self.output_dir, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"✅ Saved: {filepath}")
+        print(f"Saved: {filepath}")
     
     def preprocess_text(self, text: str) -> List[str]:
         """텍스트 전처리 및 토큰화"""
@@ -202,14 +239,14 @@ class SimilarityDeduplicator:
     def find_similar_groups(self, answers: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """유사한 답변들을 찾아서 그룹화"""
         start_time = time.time()
-        print(f"🔍 Finding similar answers with threshold {self.threshold}...")
+        print(f"Finding similar answers with threshold {self.threshold}...")
         
         # 전처리
         preprocess_start = time.time()
         answer_texts = [answer.get('answer', '') for answer in answers]
         processed_texts = [self.preprocess_text(text) for text in answer_texts]
         preprocess_time = time.time() - preprocess_start
-        print(f"⏱️ Text preprocessing completed in {preprocess_time:.2f} seconds")
+        print(f"Text preprocessing completed in {preprocess_time:.2f} seconds")
         
         # 빈 텍스트 필터링
         valid_indices = [i for i, tokens in enumerate(processed_texts) if tokens]
@@ -219,14 +256,14 @@ class SimilarityDeduplicator:
         if len(valid_answers) <= 1:
             return valid_answers, []
         
-        print(f"📊 Processing {len(valid_answers)} valid answers...")
+        print(f"Processing {len(valid_answers)} valid answers...")
         
         # TF-IDF 계산
         tfidf_start = time.time()
-        print("📊 Calculating TF-IDF vectors...")
+        print("Calculating TF-IDF vectors...")
         idf_dict = self.calculate_idf(valid_processed)
         vocabulary = sorted(idf_dict.keys())
-        print(f"📚 Vocabulary size: {len(vocabulary)}")
+        print(f"Vocabulary size: {len(vocabulary)}")
         
         # 각 답변의 TF-IDF 벡터 생성
         tfidf_vectors = []
@@ -238,11 +275,11 @@ class SimilarityDeduplicator:
             tfidf_vectors.append(vector)
         
         tfidf_time = time.time() - tfidf_start
-        print(f"⏱️ TF-IDF vectorization completed in {tfidf_time:.2f} seconds")
+        print(f"TF-IDF vectorization completed in {tfidf_time:.2f} seconds")
         
         # 유사도 계산 및 그룹화
         similarity_start = time.time()
-        print("🔗 Grouping similar answers...")
+        print("Grouping similar answers...")
         processed_indices = set()
         unique_answers = []
         similar_groups = []
@@ -344,26 +381,26 @@ class SimilarityDeduplicator:
         similarity_time = time.time() - similarity_start
         total_time = time.time() - start_time
         
-        print(f"📊 Total comparisons made: {total_comparisons:,}")
-        print(f"⏱️ Similarity grouping completed in {similarity_time:.2f} seconds")
-        print(f"⏱️ Total similarity detection time: {total_time:.2f} seconds")
+        print(f"Total comparisons made: {total_comparisons:,}")
+        print(f"Similarity grouping completed in {similarity_time:.2f} seconds")
+        print(f"Total similarity detection time: {total_time:.2f} seconds")
         
         return unique_answers, similar_groups
     
     def process_and_save(self) -> None:
         """답변 필터링 후 유사도 기반 중복 제거 처리 및 파일 저장"""
         total_start_time = time.time()
-        print('🚀 Starting answer filtering and similarity-based deduplication...')
+        print('Starting answer filtering and similarity-based deduplication...')
         
         # 1단계: 답변 필터링 (자모 나열, 숫자개 등 제거)
-        print('📋 Step 1: Filtering meaningless answers...')
+        print('Step 1: Filtering meaningless answers...')
         filtered_answers, removed_answers = self.answer_filter.run()
         
-        print(f'📊 Filtered out {len(removed_answers)} meaningless answers')
-        print(f'📊 Proceeding with {len(filtered_answers)} valid answers')
+        print(f'Filtered out {len(removed_answers)} meaningless answers')
+        print(f'Proceeding with {len(filtered_answers)} valid answers')
         
         # 2단계: 유사도 기반 중복 제거
-        print('🔍 Step 2: Removing similar duplicates...')
+        print('Step 2: Removing similar duplicates...')
         unique_answers, similar_groups = self.find_similar_groups(filtered_answers)
         
         # similar_groups도 동일한 기준으로 정렬
@@ -406,25 +443,25 @@ class SimilarityDeduplicator:
         similarity_removal_rate = (similarity_removed / filtered_count) * 100 if filtered_count > 0 else 0
         similarity_group_rate = (len(similar_groups) / len(unique_answers)) * 100 if len(unique_answers) > 0 else 0
         
-        print(f'\n📊 === FINAL STATISTICS ===')
-        print(f'✨ Original answers: {original_count}')
-        print(f'✨ Meaningless answers removed: {meaningless_removed} ({meaningless_removal_rate:.2f}%)')
-        print(f'✨ Filtered answers: {filtered_count}')
-        print(f'✨ Similar answers removed: {similarity_removed} ({similarity_removal_rate:.2f}%)')
-        print(f'✨ Final unique answers: {final_count}')
-        print(f'✨ Similarity groups: {len(similar_groups)}')
-        print(f'📊 Total removal rate: {total_removal_rate:.2f}%')
-        print(f'📊 Similarity group rate: {similarity_group_rate:.2f}%')
-        print(f'📊 Math check: {original_count} - {meaningless_removed} - {similarity_removed} = {original_count - meaningless_removed - similarity_removed} (should equal {final_count})')
+        print(f'\n=== FINAL STATISTICS ===')
+        print(f'Original answers: {original_count}')
+        print(f'Meaningless answers removed: {meaningless_removed} ({meaningless_removal_rate:.2f}%)')
+        print(f'Filtered answers: {filtered_count}')
+        print(f'Similar answers removed: {similarity_removed} ({similarity_removal_rate:.2f}%)')
+        print(f'Final unique answers: {final_count}')
+        print(f'Similarity groups: {len(similar_groups)}')
+        print(f'Total removal rate: {total_removal_rate:.2f}%')
+        print(f'Similarity group rate: {similarity_group_rate:.2f}%')
+        print(f'Math check: {original_count} - {meaningless_removed} - {similarity_removed} = {original_count - meaningless_removed - similarity_removed} (should equal {final_count})')
         
         # 임계값별 통계
         if similar_groups:
             avg_similarity = sum(group['avgSimilarity'] for group in similar_groups) / len(similar_groups)
-            print(f'📊 Average similarity in groups: {avg_similarity:.3f}')
+            print(f'Average similarity in groups: {avg_similarity:.3f}')
         
         # 전체 처리시간
         total_time = time.time() - total_start_time
-        print(f'\n⏱️ Total Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
+        print(f'\nTotal Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
     
     def run(self) -> None:
         """답변 필터링 및 유사도 기반 중복 제거 실행"""
@@ -434,7 +471,7 @@ class SimilarityDeduplicator:
         try:
             start_time = time.time()
             start_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f'🚀 Starting Answer Filtering and Similarity-based Duplicate Removal at {start_datetime}')
+            print(f'Starting Answer Filtering and Similarity-based Duplicate Removal at {start_datetime}')
             
             self.process_and_save()
             
@@ -442,13 +479,13 @@ class SimilarityDeduplicator:
             end_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             total_runtime = end_time - start_time
             
-            print(f'✅ Answer filtering and similarity-based deduplication completed successfully!')
-            print(f'🏁 Process finished at {end_datetime}')
-            print(f'⏱️ Total Runtime: {total_runtime:.2f} seconds ({total_runtime/60:.2f} minutes)')
+            print(f'Answer filtering and similarity-based deduplication completed successfully!')
+            print(f'Process finished at {end_datetime}')
+            print(f'Total Runtime: {total_runtime:.2f} seconds ({total_runtime/60:.2f} minutes)')
             
         except Exception as error:
             error_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f'❌ Answer filtering and similarity-based deduplication failed at {error_time}: {error}')
+            print(f'Answer filtering and similarity-based deduplication failed at {error_time}: {error}')
             raise
         finally:
             # 로그 캡처 종료 및 저장
