@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { FileUploadProps } from '../types';
+import type { FileUploadProps } from '../types';
 
 export default function FileUpload({ onFileUpload, isUploading }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);

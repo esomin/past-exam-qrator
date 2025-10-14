@@ -29,3 +29,33 @@ export interface ResultsDisplayProps {
   results: ProcessingResult[];
   onDownload: (resultId: string) => void;
 }
+
+// API Request/Response Types
+export interface ProcessFileRequest {
+  file_data: string; // base64 encoded JSON
+  filename: string;
+  options: string[]; // ["category", "institution", "year"]
+}
+
+export interface ProcessFileResponse {
+  success: boolean;
+  results?: ProcessingResultInfo[];
+  error?: ApiError;
+}
+
+export interface ProcessingResultInfo {
+  type: string;
+  filename: string;
+  download_id: string;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: string;
+}
+
+export interface DownloadResponse {
+  success: boolean;
+  error?: ApiError;
+}

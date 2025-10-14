@@ -50,14 +50,14 @@
   - Implement loading states and error message display
   - _Requirements: 4.1, 6.2, 6.3, 6.4_
 
-- [ ] 4. Implement API communication
-- [ ] 4.1 Create API service module
+- [x] 4. Implement API communication
+- [x] 4.1 Create API service module
   - Implement file upload API calls with proper error handling
   - Create download functionality for processed files
   - Add request/response type definitions
   - _Requirements: 5.1, 5.2, 5.4, 5.5_
 
-- [ ] 4.2 Integrate API calls with React components
+- [x] 4.2 Integrate API calls with React components
   - Connect FileUpload component to backend API
   - Implement processing workflow with selected options
   - Handle API responses and update UI accordingly

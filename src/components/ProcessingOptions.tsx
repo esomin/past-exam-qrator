@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ProcessingOptionsProps } from '../types';
+import { useState } from 'react';
+import type { ProcessingOptionsProps } from '../types';
 
 export default function ProcessingOptions({ 
   options, 

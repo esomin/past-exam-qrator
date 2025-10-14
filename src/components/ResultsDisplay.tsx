@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ResultsDisplayProps } from '../types';
+import { useState } from 'react';
+import type { ResultsDisplayProps } from '../types';
 
 export default function ResultsDisplay({ results, onDownload }: ResultsDisplayProps) {
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
