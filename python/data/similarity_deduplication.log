@@ -1,4 +1,4 @@
-=== Similarity Deduplication Final Statistics - 2025-10-13 00:42:08 ===
+=== Similarity Deduplication Final Statistics - 2025-10-14 23:21:08 ===
 
 
 === FINAL STATISTICS ===
@@ -11,7 +11,7 @@ Similarity group rate: 12.69%
 Math check: 3149 - 541 = 2608 (should equal 2545)
 Average similarity in groups: 0.914
 
-Total Processing Time: 21.74 seconds (0.36 minutes)
+Total Processing Time: 24.46 seconds (0.41 minutes)
 Similarity-based deduplication completed successfully!
-Process finished at 2025-10-13 00:42:08
-Total Runtime: 21.74 seconds (0.36 minutes)
+Process finished at 2025-10-14 23:21:08
+Total Runtime: 24.46 seconds (0.41 minutes)

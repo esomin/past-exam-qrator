@@ -83,18 +83,19 @@ def main():
             output_dir="data",
             threshold=0.8
         )
-        deduplicator.run()
+        
+        # 유사도 제거 처리하고 결과 받기
+        unique_answers, similar_groups = deduplicator.process_similarity_removal()
         
         # 5단계: Nested 구조 생성
         print('\nStep 5: Creating nested structures by categories...')
-        process_both_files()
+        from create_nested_structure import create_nested_from_data
+        create_nested_from_data(unique_answers, similar_groups)
         
         print('\nComplete pipeline processing finished successfully!')
         print('Final outputs:')
         print('   - data/qna_pairs.json (Q&A pairs with category2)')
         print('   - data/answers.json (All answers - intermediate file)')
-        print('   - data/answers_similarity_unique.json (Final unique answers)')
-        print('   - data/answers_similarity_removed.json (Removed similar groups)')
         print('   - data/answers_similarity_unique_nested.json (Nested unique answers)')
         print('   - data/answers_similarity_removed_nested.json (Nested removed groups)')
         print('   - data/similarity_deduplication.log (Processing log)')

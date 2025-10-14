@@ -422,9 +422,7 @@ class SimilarityDeduplicator:
         
         similar_groups.sort(key=sort_key_groups)
         
-        # 결과 저장
-        self.save_json_file(unique_answers, 'answers_similarity_unique.json')
-        self.save_json_file(similar_groups, 'answers_similarity_removed.json')
+        # 결과 저장 (파일 저장 생략 - nested 구조만 생성)
         
         # 통계 출력
         original_count = len(all_answers)  # 원본 데이터 개수
@@ -452,6 +450,94 @@ class SimilarityDeduplicator:
         total_time = time.time() - total_start_time
         print(f'\nTotal Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
     
+    def process_similarity_removal(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """유사도 기반 중복 제거 처리하고 결과 반환 (파일 저장 없음)"""
+        # 로그 캡처 시작
+        sys.stdout = self.log_capture
+        
+        try:
+            start_time = time.time()
+            start_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f'Starting Similarity-based Duplicate Removal at {start_datetime}')
+            
+            # 답변 데이터 로드
+            print('Step 1: Loading answers...')
+            all_answers = self.load_answers()
+            
+            print(f'Proceeding with {len(all_answers)} answers')
+            
+            # 유사도 기반 중복 제거
+            print('Step 2: Removing similar duplicates...')
+            unique_answers, similar_groups = self.find_similar_groups(all_answers)
+            
+            # similar_groups도 동일한 기준으로 정렬
+            temp_sorted_groups = sorted(similar_groups, key=lambda x: -x.get('similarityCount', 0))
+            
+            # category1 우선순위 순서 결정 (similar_groups용)
+            category1_order_groups = []
+            seen_categories_groups = set()
+            for group in temp_sorted_groups:
+                cat1 = group.get('category1', '')
+                if cat1 and cat1 not in seen_categories_groups:
+                    category1_order_groups.append(cat1)
+                    seen_categories_groups.add(cat1)
+            
+            def sort_key_groups(x):
+                cat1 = x.get('category1', '')
+                cat1_priority = category1_order_groups.index(cat1) if cat1 in category1_order_groups else len(category1_order_groups)
+                return (
+                    cat1_priority,                    # category1 우선순위 (similarityCount 순서 기준)
+                    x.get('category2', ''),           # category2 오름차순
+                    -x.get('similarityCount', 0)      # 같은 category 내에서 similarityCount 내림차순
+                )
+            
+            similar_groups.sort(key=sort_key_groups)
+            
+            # 통계 출력
+            original_count = len(all_answers)
+            similarity_removed = sum(len(group['removedAnswers']) for group in similar_groups)
+            final_count = len(unique_answers)
+            
+            similarity_removal_rate = (similarity_removed / original_count) * 100 if original_count > 0 else 0
+            similarity_group_rate = (len(similar_groups) / len(unique_answers)) * 100 if len(unique_answers) > 0 else 0
+            
+            print(f'\n=== FINAL STATISTICS ===')
+            print(f'Original answers: {original_count}')
+            print(f'Similar answers removed: {similarity_removed} ({similarity_removal_rate:.2f}%)')
+            print(f'Final unique answers: {final_count}')
+            print(f'Similarity groups: {len(similar_groups)}')
+            print(f'Similarity removal rate: {similarity_removal_rate:.2f}%')
+            print(f'Similarity group rate: {similarity_group_rate:.2f}%')
+            print(f'Math check: {original_count} - {similarity_removed} = {original_count - similarity_removed} (should equal {final_count})')
+            
+            # 임계값별 통계
+            if similar_groups:
+                avg_similarity = sum(group['avgSimilarity'] for group in similar_groups) / len(similar_groups)
+                print(f'Average similarity in groups: {avg_similarity:.3f}')
+            
+            # 전체 처리시간
+            total_time = time.time() - start_time
+            print(f'\nTotal Processing Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)')
+            
+            end_time = time.time()
+            end_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            total_runtime = end_time - start_time
+            
+            print(f'Similarity-based deduplication completed successfully!')
+            print(f'Process finished at {end_datetime}')
+            print(f'Total Runtime: {total_runtime:.2f} seconds ({total_runtime/60:.2f} minutes)')
+            
+            return unique_answers, similar_groups
+            
+        except Exception as error:
+            error_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f'Similarity-based deduplication failed at {error_time}: {error}')
+            raise
+        finally:
+            # 로그 캡처 종료 및 저장
+            sys.stdout = self.log_capture.original_stdout
+            self.log_capture.save_logs()
+
     def run(self) -> None:
         """유사도 기반 중복 제거 실행"""
         # 로그 캡처 시작

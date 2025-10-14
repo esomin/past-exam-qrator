@@ -43,6 +43,57 @@ def create_nested_structure(input_file: str, output_file: str) -> Dict[str, Dict
     
     return result
 
+def create_nested_from_data(unique_answers: List[Dict], similar_groups: List[Dict]):
+    """Create nested structures directly from data (without reading files)"""
+    
+    print("Creating nested structure for unique answers...")
+    unique_nested = defaultdict(lambda: defaultdict(list))
+    
+    for item in unique_answers:
+        category1_key = item['category1']
+        category2_key = item['category2']
+        unique_nested[category1_key][category2_key].append(item)
+    
+    # Convert to regular dict
+    unique_result = {
+        cat1: dict(cat2_dict) 
+        for cat1, cat2_dict in unique_nested.items()
+    }
+    
+    # Write unique nested file
+    with open('data/answers_similarity_unique_nested.json', 'w', encoding='utf-8') as f:
+        json.dump(unique_result, f, ensure_ascii=False, indent=2)
+    
+    print(f'Successfully created nested JSON structure: data/answers_similarity_unique_nested.json')
+    print(f'Total categories: {len(unique_result)}')
+    for cat1 in unique_result:
+        print(f'{cat1}: {len(unique_result[cat1])} subcategories')
+    
+    print("\nCreating nested structure for similar groups...")
+    groups_nested = defaultdict(lambda: defaultdict(list))
+    
+    for item in similar_groups:
+        category1_key = item['category1']
+        category2_key = item['category2']
+        groups_nested[category1_key][category2_key].append(item)
+    
+    # Convert to regular dict
+    groups_result = {
+        cat1: dict(cat2_dict) 
+        for cat1, cat2_dict in groups_nested.items()
+    }
+    
+    # Write groups nested file
+    with open('data/answers_similarity_removed_nested.json', 'w', encoding='utf-8') as f:
+        json.dump(groups_result, f, ensure_ascii=False, indent=2)
+    
+    print(f'Successfully created nested JSON structure: data/answers_similarity_removed_nested.json')
+    print(f'Total categories: {len(groups_result)}')
+    for cat1 in groups_result:
+        print(f'{cat1}: {len(groups_result[cat1])} subcategories')
+    
+    print("\nBoth nested structures created successfully!")
+
 def process_both_files():
     """Process both similarity files and create nested structures"""
     
