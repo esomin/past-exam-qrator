@@ -6,26 +6,26 @@
   - Create basic project directory structure
   - _Requirements: 5.1, 6.1_
 
-- [ ] 2. Create enhanced Python backend with solve parsing
-- [ ] 2.1 Implement solve field parser module
+- [x] 2. Create enhanced Python backend with solve parsing
+- [x] 2.1 Implement solve field parser module
   - Create SolveParser class to extract institution and year from solve strings
   - Handle edge cases for malformed or missing solve fields
   - Write unit tests for solve parsing functionality
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 2.2 Enhance main.py with new classification options
+- [x] 2.2 Enhance main.py with new classification options
   - Modify convert_input_to_answers function to include institution and year fields
   - Add classification logic for institution-based grouping
   - Add classification logic for year-based grouping
   - _Requirements: 3.4, 3.5_
 
-- [ ] 2.3 Create Flask API server
+- [x] 2.3 Create Flask API server
   - Implement POST /api/process endpoint for file processing
   - Implement GET /api/download/{id} endpoint for file downloads
   - Add CORS configuration for React frontend communication
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 2.4 Implement multiple classification processing
+- [x] 2.4 Implement multiple classification processing
   - Create classification engine that handles multiple simultaneous classifications
   - Generate separate output files for each classification type
   - Implement temporary file management for downloads

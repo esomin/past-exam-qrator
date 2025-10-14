@@ -11,6 +11,7 @@ from typing import List, Dict, Any
 from collections import defaultdict
 from add_category2_to_qn import create_qna_pairs_with_category2
 from remove_similarity_duplicates import SimilarityDeduplicator
+from processors.solve_parser import SolveInfo
 
 
 def convert_input_to_answers(input_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -20,12 +21,18 @@ def convert_input_to_answers(input_data: List[Dict[str, Any]]) -> List[Dict[str,
     
     answers = []
     for qna in qna_pairs:
+        # Parse solve field to extract institution and year
+        solve_info = SolveInfo.parse(qna.get("solve", ""))
+        
         # 각 답변을 개별 항목으로 변환
         for answer in qna["answers"]:
             answer_item = {
                 "id": answer["id"],
                 "category1": qna["category1"],
                 "category2": qna["category2"],
+                "institution": solve_info.institution,  # New field
+                "year": solve_info.year,                # New field
+                "solve": qna.get("solve", ""),          # Keep original solve field
                 "question": qna["question"],
                 "answer": answer["answer"],
                 "isTrue": answer["isTrue"]
@@ -66,10 +73,70 @@ def create_nested_structure_from_groups(similar_groups: List[Dict[str, Any]]) ->
     return result
 
 
-def main():
-    """메인 함수 - 최적화된 Q&A 처리 파이프라인"""
-    print('Starting Optimized Q&A Processing Pipeline')
-    print('Pipeline: input.json → similarity grouping → grouped_answers_by_similarity.json')
+def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Group data by institution extracted from solve field"""
+    print("Classifying data by institution...")
+    
+    institution_groups = defaultdict(list)
+    
+    for item in data:
+        institution = item.get('institution', 'Unknown')
+        institution_groups[institution].append(item)
+    
+    result = dict(institution_groups)
+    
+    # 결과 저장
+    output_path = "data/institution_classification.json"
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+    
+    print(f'Successfully created: {output_path}')
+    print(f'Total institutions: {len(result)}')
+    for institution in result:
+        print(f'  {institution}: {len(result[institution])} items')
+    
+    return result
+
+
+def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Group data by year extracted from solve field"""
+    print("Classifying data by year...")
+    
+    year_groups = defaultdict(list)
+    
+    for item in data:
+        year = item.get('year', 'Unknown')
+        year_groups[year].append(item)
+    
+    result = dict(year_groups)
+    
+    # 결과 저장
+    output_path = "data/year_classification.json"
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+    
+    print(f'Successfully created: {output_path}')
+    print(f'Total years: {len(result)}')
+    for year in result:
+        print(f'  {year}: {len(result[year])} items')
+    
+    return result
+
+
+def main(classification_options: List[str] = None):
+    """
+    메인 함수 - 최적화된 Q&A 처리 파이프라인
+    
+    Args:
+        classification_options: List of classification types to perform
+                              Options: ['category', 'institution', 'year']
+                              Default: ['category'] (original behavior)
+    """
+    if classification_options is None:
+        classification_options = ['category']
+    
+    print('Starting Enhanced Q&A Processing Pipeline')
+    print(f'Classifications to perform: {", ".join(classification_options)}')
     
     try:
         # 1단계: input.json 로드
@@ -80,28 +147,46 @@ def main():
         print(f"Loaded {len(input_data)} questions from {input_path}")
         
         # 2단계: input을 answers 형태로 변환 (메모리에서만)
-        print('\nStep 2: Converting to answers format...')
+        print('\nStep 2: Converting to answers format with enhanced fields...')
         answers = convert_input_to_answers(input_data)
         
-        # 3단계: 유사도 기반 중복 제거 (메모리에서만)
-        print('\nStep 3: Processing similarity-based grouping...')
-        deduplicator = SimilarityDeduplicator(
-            input_file=None,  # 파일 대신 메모리 데이터 사용
-            output_dir="data",
-            threshold=0.8
-        )
+        # 3단계: 분류 처리
+        results = {}
         
-        # 메모리 데이터로 직접 처리
-        _, similar_groups = deduplicator.process_similarity_from_data(answers)
+        if 'category' in classification_options:
+            print('\nStep 3a: Processing similarity-based category grouping...')
+            deduplicator = SimilarityDeduplicator(
+                input_file=None,  # 파일 대신 메모리 데이터 사용
+                output_dir="data",
+                threshold=0.8
+            )
+            
+            # 메모리 데이터로 직접 처리
+            _, similar_groups = deduplicator.process_similarity_from_data(answers)
+            
+            # Nested 구조 생성 및 저장
+            print('\nStep 3a-final: Creating category nested structure...')
+            results['category'] = create_nested_structure_from_groups(similar_groups)
         
-        # 4단계: Nested 구조 생성 및 저장
-        print('\nStep 4: Creating final nested structure...')
-        create_nested_structure_from_groups(similar_groups)
+        if 'institution' in classification_options:
+            print('\nStep 3b: Processing institution-based classification...')
+            results['institution'] = classify_by_institution(answers)
         
-        print('\nOptimized pipeline processing completed successfully!')
-        print('Final output:')
-        print('   - data/grouped_answers_by_similarity.json (Final result)')
-        print('   - data/similarity_deduplication.log (Processing log)')
+        if 'year' in classification_options:
+            print('\nStep 3c: Processing year-based classification...')
+            results['year'] = classify_by_year(answers)
+        
+        print('\nEnhanced pipeline processing completed successfully!')
+        print('Generated outputs:')
+        if 'category' in classification_options:
+            print('   - data/grouped_answers_by_similarity.json (Category classification)')
+            print('   - data/similarity_deduplication.log (Processing log)')
+        if 'institution' in classification_options:
+            print('   - data/institution_classification.json (Institution classification)')
+        if 'year' in classification_options:
+            print('   - data/year_classification.json (Year classification)')
+        
+        return results
         
     except Exception as error:
         print(f'Pipeline processing failed: {error}')

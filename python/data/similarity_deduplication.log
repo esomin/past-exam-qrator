@@ -1,17 +1,16 @@
-=== Similarity Deduplication Final Statistics - 2025-10-14 23:27:39 ===
+=== Similarity Deduplication Final Statistics - 2025-10-15 02:02:46 ===
 
 
 === FINAL STATISTICS ===
-Original answers: 3149
-Similar answers removed: 541 (17.18%)
-Final unique answers: 2545
-Similarity groups: 323
-Similarity removal rate: 17.18%
-Similarity group rate: 12.69%
-Math check: 3149 - 541 = 2608 (should equal 2545)
-Average similarity in groups: 0.914
+Original answers: 7
+Similar answers removed: 0 (0.00%)
+Final unique answers: 7
+Similarity groups: 0
+Similarity removal rate: 0.00%
+Similarity group rate: 0.00%
+Math check: 7 - 0 = 7 (should equal 7)
 
-Total Processing Time: 22.19 seconds (0.37 minutes)
+Total Processing Time: 0.00 seconds (0.00 minutes)
 Similarity-based deduplication completed successfully!
-Process finished at 2025-10-14 23:27:39
-Total Runtime: 22.19 seconds (0.37 minutes)
+Process finished at 2025-10-15 02:02:46
+Total Runtime: 0.00 seconds (0.00 minutes)

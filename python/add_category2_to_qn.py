@@ -83,6 +83,7 @@ class Category2Adder:
                 'id': q['id'],
                 'category1': q.get('categoryTitle', ''),
                 'category2': q.get('category2', ''),
+                'solve': q.get('solve', ''),  # Include solve field
                 'question': q['title'],
                 'answers': [
                     {
