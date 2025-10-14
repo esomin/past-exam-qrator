@@ -1,27 +1,35 @@
 {
-  "name": "qna-processor",
-  "version": "1.0.0",
+  "name": "runtorun",
+  "private": true,
+  "version": "0.0.0",
   "type": "module",
-  "description": "Q&A data processing tool",
-  "main": "dist/app.js",
   "scripts": {
-    "build": "tsc",
-    "start": "npm run build && node dist/app.js",
-    "dev": "tsx watch src/app.ts",
-    "process-questions": "npm run build && node dist/processors/questions.js",
-    "process-answers": "npm run build && node dist/processors/answers.js",
-    "clean": "rm -rf dist",
-    "type-check": "tsc --noEmit"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "setup-python": "./scripts/setup-python.sh",
+    "start-backend": "python/start-server.sh",
+    "dev-full": "concurrently \"npm run dev\" \"npm run start-backend\""
   },
-  "keywords": ["qna", "data-processing", "typescript"],
-  "author": "",
-  "license": "MIT",
-  "engines": {
-    "node": ">=22.0.0"
+  "dependencies": {
+    "axios": "^1.12.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0"
+    "@eslint/js": "^9.36.0",
+    "@types/node": "^24.6.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.45.0",
+    "vite": "^7.1.7"
   }
 }

@@ -1,70 +1,128 @@
-# Q&A Data Processor
+# React File Processor
 
-TypeScript + Python을 사용한 Q&A 데이터 처리 도구
+A full-stack application for processing JSON files with multiple classification options. Built with Vite React frontend and Flask Python backend.
 
-## 프로젝트 구조
+## Features
+
+- Drag-and-drop JSON file upload
+- Multiple processing options (Category, Institution, Year)
+- Enhanced Python backend with solve field parsing
+- Download processed results as JSON files
+- Modern React UI with TypeScript
+
+## Project Structure
+
 ```
-project/
-├── src/                    # TypeScript 소스 코드
-│   ├── types/             # 타입 정의
-│   ├── processors/        # 데이터 처리 모듈
-│   ├── utils/            # 유틸리티 함수
-│   └── extractQna.ts            # 메인 애플리케이션
-├── python/               # Python 스크래핑 코드
-│   ├── requirements.txt
-│   └── *.ipynb
-├── data/                 # 입출력 데이터
-├── scripts/              # 실행 스크립트
-└── dist/                 # 컴파일된 JavaScript
+├── src/                    # React frontend
+│   ├── components/         # React components
+│   ├── services/          # API services
+│   └── types/             # TypeScript definitions
+├── python/                # Flask backend
+│   ├── processors/        # Processing modules
+│   ├── app.py            # Flask application
+│   └── requirements.txt   # Python dependencies
+└── scripts/               # Setup scripts
 ```
 
-## 환경 설정
+## Setup Instructions
 
-### Node.js + TypeScript 환경
+### 1. Install Node.js Dependencies
+
 ```bash
-nvm use 22
 npm install
 ```
 
-### Python 환경 
+### 2. Setup Python Environment
+
 ```bash
-cd python
-python3 -m venv myenv
-source myenv/bin/activate
-pip install -r requirements.txt
+npm run setup-python
 ```
 
-## 사용법
+This will:
+- Create a Python virtual environment
+- Install Flask and other required dependencies
 
-### 전체 파이프라인 실행
+### 3. Development
+
+Start both frontend and backend:
+
 ```bash
-./scripts/run.sh
+npm run dev-full
 ```
 
-### 개발 모드 (watch)
+Or start them separately:
+
 ```bash
+# Frontend only
 npm run dev
+
+# Backend only
+npm run start-backend
 ```
 
-### 개별 실행
-```bash
-# TypeScript 빌드
-npm run build
+## API Endpoints
 
-# 전체 파이프라인
-npm start
+- `GET /api/health` - Health check
+- `POST /api/process` - Process uploaded JSON file
+- `GET /api/download/<id>` - Download processed file
 
-# 타입 체크만
-npm run type-check
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-## 주요 기능
-- **타입 안전성**: TypeScript로 데이터 구조 보장
-- **모듈화**: 기능별 분리된 프로세서
-- **HTML 정리**: 태그 제거 및 텍스트 정리
-- **자동화**: 스크립트를 통한 일괄 처리
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-## 출력 파일
-- `data/questions.json`: 추출된 질문 목록
-- `data/answers.json`: 추출된 답변 목록  
-- `data/qna-pairs.json`: Q&A 쌍 데이터
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
