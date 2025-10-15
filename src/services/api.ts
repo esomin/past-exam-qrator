@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
-import type { ProcessFileRequest, ProcessFileResponse, ApiError } from '../types';
+import type { ProcessFileRequest, ProcessFileResponse, ApiError, NetworkError, ValidationError } from '../types';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5001/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,8 +11,8 @@ export const api = axios.create({
   },
 });
 
-// Error handling utility
-const handleApiError = (error: AxiosError): ApiError => {
+// Enhanced error handling utilities
+const handleApiError = (error: AxiosError): ApiError | NetworkError => {
   if (error.response?.data) {
     // Server returned an error response
     const serverError = error.response.data as any;
@@ -23,11 +23,14 @@ const handleApiError = (error: AxiosError): ApiError => {
     };
   } else if (error.request) {
     // Network error - no response received
-    return {
+    const networkError: NetworkError = {
       code: 'NETWORK_ERROR',
       message: 'Unable to connect to the server. Please check your connection and try again.',
       details: error.message,
+      isNetworkError: true,
+      retryable: true,
     };
+    return networkError;
   } else {
     // Request setup error
     return {
@@ -36,6 +39,93 @@ const handleApiError = (error: AxiosError): ApiError => {
       details: error.message,
     };
   }
+};
+
+// Client-side validation utilities
+const validateFile = (file: File): ValidationError[] => {
+  const errors: ValidationError[] = [];
+  
+  // File type validation
+  if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+    errors.push({
+      field: 'file',
+      message: 'Please upload a valid JSON file',
+      code: 'INVALID_FILE_TYPE'
+    });
+  }
+  
+  // File size validation (10MB limit)
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    errors.push({
+      field: 'file',
+      message: 'File size must be less than 10MB',
+      code: 'FILE_TOO_LARGE'
+    });
+  }
+  
+  // File name validation
+  if (file.name.length > 255) {
+    errors.push({
+      field: 'filename',
+      message: 'Filename is too long (maximum 255 characters)',
+      code: 'FILENAME_TOO_LONG'
+    });
+  }
+  
+  return errors;
+};
+
+const validateProcessingOptions = (options: string[]): ValidationError[] => {
+  const errors: ValidationError[] = [];
+  const validOptions = ['category', 'institution', 'year'];
+  
+  if (!Array.isArray(options) || options.length === 0) {
+    errors.push({
+      field: 'options',
+      message: 'Please select at least one processing option',
+      code: 'NO_OPTIONS_SELECTED'
+    });
+    return errors;
+  }
+  
+  const invalidOptions = options.filter(option => !validOptions.includes(option));
+  if (invalidOptions.length > 0) {
+    errors.push({
+      field: 'options',
+      message: `Invalid processing options: ${invalidOptions.join(', ')}`,
+      code: 'INVALID_OPTIONS'
+    });
+  }
+  
+  return errors;
+};
+
+// Retry mechanism for network errors
+const retryRequest = async <T>(
+  requestFn: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Only retry on network errors
+      if (error instanceof Error && error.message.includes('NETWORK_ERROR') && attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+  
+  throw lastError!;
 };
 
 // Convert File to base64 string
@@ -63,30 +153,45 @@ export const processFile = async (
   selectedOptions: string[]
 ): Promise<ProcessFileResponse> => {
   try {
-    // Validate file type
-    if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+    // Client-side validation
+    const fileErrors = validateFile(file);
+    if (fileErrors.length > 0) {
       return {
         success: false,
         error: {
-          code: 'INVALID_FILE_TYPE',
-          message: 'Please upload a valid JSON file',
+          code: fileErrors[0].code,
+          message: fileErrors[0].message,
+          details: fileErrors.map(e => e.message).join('; ')
         },
       };
     }
 
-    // Validate options
-    if (selectedOptions.length === 0) {
+    const optionErrors = validateProcessingOptions(selectedOptions);
+    if (optionErrors.length > 0) {
       return {
         success: false,
         error: {
-          code: 'NO_OPTIONS_SELECTED',
-          message: 'Please select at least one processing option',
+          code: optionErrors[0].code,
+          message: optionErrors[0].message,
+          details: optionErrors.map(e => e.message).join('; ')
         },
       };
     }
 
-    // Convert file to base64
-    const fileData = await fileToBase64(file);
+    // Convert file to base64 with error handling
+    let fileData: string;
+    try {
+      fileData = await fileToBase64(file);
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'FILE_READ_ERROR',
+          message: 'Failed to read the uploaded file',
+          details: error instanceof Error ? error.message : 'Unknown file read error'
+        },
+      };
+    }
 
     const requestData: ProcessFileRequest = {
       file_data: fileData,
@@ -94,7 +199,12 @@ export const processFile = async (
       options: selectedOptions,
     };
 
-    const response = await api.post<ProcessFileResponse>('/process', requestData);
+    // Use retry mechanism for network requests
+    const response = await retryRequest(
+      () => api.post<ProcessFileResponse>('/process', requestData),
+      3,
+      1000
+    );
     
     return response.data;
   } catch (error) {
@@ -111,27 +221,57 @@ export const processFile = async (
  */
 export const downloadFile = async (downloadId: string, filename: string): Promise<void> => {
   try {
-    const response = await api.get(`/download/${downloadId}`, {
-      responseType: 'blob',
-    });
+    // Validate inputs
+    if (!downloadId || !filename) {
+      throw new Error('Download ID and filename are required');
+    }
+
+    // Use retry mechanism for download requests
+    const response = await retryRequest(
+      () => api.get(`/download/${downloadId}`, {
+        responseType: 'blob',
+        timeout: 60000, // 60 second timeout for downloads
+      }),
+      2, // Fewer retries for downloads
+      2000
+    );
+
+    // Validate response
+    if (!response.data || response.data.size === 0) {
+      throw new Error('Downloaded file is empty or corrupted');
+    }
 
     // Create blob URL and trigger download
     const blob = new Blob([response.data], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
     
-    // Create temporary link element and trigger download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    try {
+      // Create temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+    } finally {
+      // Always cleanup the blob URL
+      window.URL.revokeObjectURL(url);
+    }
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
-    throw new Error(apiError.message);
+    
+    // Provide more specific error messages for downloads
+    let errorMessage = apiError.message;
+    if (apiError.code === 'NETWORK_ERROR') {
+      errorMessage = 'Download failed due to network issues. Please check your connection and try again.';
+    } else if (apiError.code === 'FILE_NOT_FOUND') {
+      errorMessage = 'The requested file is no longer available. It may have expired.';
+    }
+    
+    throw new Error(errorMessage);
   }
 };
 
@@ -140,9 +280,34 @@ export const downloadFile = async (downloadId: string, filename: string): Promis
  */
 export const checkServerHealth = async (): Promise<boolean> => {
   try {
-    await api.get('/health');
+    await api.get('/health', { timeout: 5000 }); // 5 second timeout for health checks
     return true;
   } catch (error) {
+    console.warn('Server health check failed:', error);
     return false;
+  }
+};
+
+/**
+ * Enhanced server health check with detailed status
+ */
+export const getServerStatus = async (): Promise<{
+  available: boolean;
+  error?: string;
+  details?: any;
+}> => {
+  try {
+    const response = await api.get('/health', { timeout: 5000 });
+    return {
+      available: true,
+      details: response.data
+    };
+  } catch (error) {
+    const apiError = handleApiError(error as AxiosError);
+    return {
+      available: false,
+      error: apiError.message,
+      details: apiError
+    };
   }
 };

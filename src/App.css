@@ -607,3 +607,373 @@
 .summary-icon {
   font-size: 1.1rem;
 }
+/
+* Enhanced Loading States */
+.validating-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #646cff;
+}
+
+.upload-errors {
+  margin-top: 1rem;
+}
+
+.upload-error {
+  margin-bottom: 0.5rem;
+}
+
+/* Processing Options Loading States */
+.processing-indicator {
+  margin-left: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mini-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid #646cff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.processing-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #e3f2fd;
+  color: #1565c0;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+  border-left: 4px solid #2196f3;
+  font-weight: bold;
+}
+
+.processing-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid #1565c0;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Progress Indicator Component */
+.progress-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  min-width: 300px;
+  max-width: 500px;
+  border: 1px solid #e0e0e0;
+}
+
+.progress-indicator::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+.progress-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.progress-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #646cff;
+  border-radius: 50%;
+  animation: spin 1.5s linear infinite;
+  flex-shrink: 0;
+}
+
+.progress-text {
+  flex: 1;
+}
+
+.progress-message {
+  margin: 0 0 0.25rem 0;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.progress-sub-message {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #646cff, #535bf2);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-percentage {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #646cff;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Enhanced Button Loading States */
+.process-btn.processing {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.process-btn.processing:hover {
+  background-color: #6c757d;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading Overlay for Sections */
+.section-loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.section-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.section-loading::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #646cff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 11;
+}
+
+/* Responsive Progress Indicator */
+@media (max-width: 768px) {
+  .progress-indicator {
+    margin: 1rem;
+    min-width: auto;
+    max-width: calc(100vw - 2rem);
+    padding: 1.5rem;
+  }
+  
+  .progress-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .progress-spinner {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .progress-message {
+    font-size: 1rem;
+  }
+  
+  .progress-sub-message {
+    font-size: 0.85rem;
+  }
+}
+
+/* Enhanced Results Loading States */
+.results-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.results-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #646cff;
+  border-radius: 50%;
+  animation: spin 1.5s linear infinite;
+}
+
+.results-loading-text {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.results-loading-subtext {
+  color: #888;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Pulse Animation for Loading Elements */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.loading-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton Loading for Results */
+.result-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+}
+
+.skeleton-line {
+  height: 16px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-line.short {
+  width: 60%;
+}
+
+.skeleton-line.medium {
+  width: 80%;
+}
+
+.skeleton-line.long {
+  width: 100%;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}/* 
+Download Progress Bars */
+.download-progress {
+  margin-top: 0.5rem;
+}
+
+.download-progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.download-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #28a745, #20c997);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Enhanced Download Button States */
+.download-btn.downloading {
+  background-color: #6c757d;
+  position: relative;
+  overflow: hidden;
+}
+
+.download-btn.downloading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shimmer-button 2s infinite;
+}
+
+@keyframes shimmer-button {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Responsive Enhancements for Loading States */
+@media (max-width: 768px) {
+  .processing-message {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  .results-loading {
+    padding: 1.5rem;
+  }
+  
+  .results-loading-spinner {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .download-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .download-spinner {
+    width: 14px;
+    height: 14px;
+  }
+}

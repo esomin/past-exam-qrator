@@ -1,18 +1,71 @@
 import React, { useState, useCallback } from 'react';
-import type { FileUploadProps } from '../types';
+import type { FileUploadProps, ErrorState } from '../types';
+import { useErrorHandler } from '../utils/errorHandler';
+import ErrorDisplay from './ErrorDisplay';
 
 export default function FileUpload({ onFileUpload, isUploading }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<ErrorState[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const { handleError } = useErrorHandler();
 
-  const validateFile = (file: File): boolean => {
-    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
-      setError('Please upload a JSON file only');
-      return false;
+  const validateFile = async (file: File): Promise<boolean> => {
+    setIsValidating(true);
+    const validationErrors: ErrorState[] = [];
+    
+    try {
+      // File type validation
+      if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+        validationErrors.push(handleError({
+          code: 'INVALID_FILE_TYPE',
+          message: 'Please upload a JSON file only'
+        }, 'File Validation'));
+      }
+      
+      // File size validation (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        validationErrors.push(handleError({
+          code: 'FILE_TOO_LARGE',
+          message: 'File size must be less than 10MB'
+        }, 'File Validation'));
+      }
+      
+      // Empty file validation
+      if (file.size === 0) {
+        validationErrors.push(handleError({
+          code: 'FILE_EMPTY',
+          message: 'The uploaded file is empty'
+        }, 'File Validation'));
+      }
+      
+      // Filename validation
+      if (file.name.length > 255) {
+        validationErrors.push(handleError({
+          code: 'FILENAME_TOO_LONG',
+          message: 'Filename is too long (maximum 255 characters)'
+        }, 'File Validation'));
+      }
+
+      // JSON content validation (basic check)
+      if (validationErrors.length === 0) {
+        try {
+          const text = await file.text();
+          JSON.parse(text);
+        } catch (jsonError) {
+          validationErrors.push(handleError({
+            code: 'INVALID_JSON',
+            message: 'The file contains invalid JSON format'
+          }, 'File Validation'));
+        }
+      }
+      
+      setErrors(validationErrors);
+      return validationErrors.length === 0;
+    } finally {
+      setIsValidating(false);
     }
-    setError(null);
-    return true;
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -27,7 +80,7 @@ export default function FileUpload({ onFileUpload, isUploading }: FileUploadProp
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
@@ -35,18 +88,18 @@ export default function FileUpload({ onFileUpload, isUploading }: FileUploadProp
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       const file = files[0];
-      if (validateFile(file)) {
+      if (await validateFile(file)) {
         setUploadedFile(file);
         onFileUpload(file);
       }
     }
   }, [onFileUpload]);
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      if (validateFile(file)) {
+      if (await validateFile(file)) {
         setUploadedFile(file);
         onFileUpload(file);
       }
@@ -67,6 +120,11 @@ export default function FileUpload({ onFileUpload, isUploading }: FileUploadProp
               <div className="spinner"></div>
               <p>Uploading file...</p>
             </div>
+          ) : isValidating ? (
+            <div className="validating-state">
+              <div className="spinner"></div>
+              <p>Validating file...</p>
+            </div>
           ) : uploadedFile ? (
             <div className="file-info">
               <div className="file-icon">📄</div>
@@ -76,7 +134,7 @@ export default function FileUpload({ onFileUpload, isUploading }: FileUploadProp
                 className="change-file-btn"
                 onClick={() => {
                   setUploadedFile(null);
-                  setError(null);
+                  setErrors([]);
                 }}
               >
                 Change File
@@ -102,10 +160,16 @@ export default function FileUpload({ onFileUpload, isUploading }: FileUploadProp
         </div>
       </div>
       
-      {error && (
-        <div className="error-message">
-          <span className="error-icon">⚠️</span>
-          {error}
+      {errors.length > 0 && (
+        <div className="upload-errors">
+          {errors.map((error, index) => (
+            <ErrorDisplay
+              key={`${error.code}-${error.timestamp.getTime()}`}
+              error={error}
+              onDismiss={() => setErrors(prev => prev.filter((_, i) => i !== index))}
+              className="upload-error"
+            />
+          ))}
         </div>
       )}
     </div>

@@ -23,6 +23,7 @@ export interface ProcessingOptionsProps {
   options: ProcessingOption[];
   onOptionsChange: (selectedOptions: string[]) => void;
   disabled: boolean;
+  isProcessing?: boolean;
 }
 
 export interface ResultsDisplayProps {
@@ -53,6 +54,27 @@ export interface ApiError {
   code: string;
   message: string;
   details?: string;
+}
+
+// Enhanced error types for better error handling
+export interface ErrorState {
+  message: string;
+  code?: string;
+  details?: string;
+  timestamp: Date;
+  recoverable: boolean;
+  retryAction?: () => void;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  code: string;
+}
+
+export interface NetworkError extends ApiError {
+  isNetworkError: true;
+  retryable: boolean;
 }
 
 export interface DownloadResponse {

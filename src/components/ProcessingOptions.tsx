@@ -4,7 +4,8 @@ import type { ProcessingOptionsProps } from '../types';
 export default function ProcessingOptions({ 
   options, 
   onOptionsChange, 
-  disabled 
+  disabled,
+  isProcessing = false
 }: ProcessingOptionsProps) {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
@@ -34,34 +35,48 @@ export default function ProcessingOptions({
         {options.map((option) => (
           <label 
             key={option.id} 
-            className={`option-item ${disabled ? 'disabled' : ''}`}
+            className={`option-item ${disabled || isProcessing ? 'disabled' : ''}`}
           >
             <input
               type="checkbox"
               checked={selectedOptions.includes(option.id)}
               onChange={(e) => handleOptionChange(option.id, e.target.checked)}
-              disabled={disabled}
+              disabled={disabled || isProcessing}
               className="option-checkbox"
             />
             <div className="option-content">
-              <span className="option-label">{option.label}</span>
+              <span className="option-label">
+                {option.label}
+                {isProcessing && selectedOptions.includes(option.id) && (
+                  <span className="processing-indicator">
+                    <div className="mini-spinner"></div>
+                  </span>
+                )}
+              </span>
               <span className="option-description">{option.description}</span>
             </div>
           </label>
         ))}
       </div>
       
-      {!disabled && !hasSelectedOptions && (
+      {!disabled && !isProcessing && !hasSelectedOptions && (
         <div className="validation-message">
           <span className="warning-icon">⚠️</span>
           Please select at least one processing option to continue.
         </div>
       )}
       
-      {!disabled && hasSelectedOptions && (
+      {!disabled && hasSelectedOptions && !isProcessing && (
         <div className="selection-summary">
           <span className="success-icon">✅</span>
           {selectedOptions.length} option{selectedOptions.length > 1 ? 's' : ''} selected
+        </div>
+      )}
+
+      {isProcessing && hasSelectedOptions && (
+        <div className="processing-message">
+          <div className="processing-spinner"></div>
+          <span>Processing {selectedOptions.length} classification{selectedOptions.length > 1 ? 's' : ''}...</span>
         </div>
       )}
     </div>

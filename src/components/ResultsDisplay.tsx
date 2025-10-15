@@ -4,6 +4,7 @@ import type { ResultsDisplayProps } from '../types';
 export default function ResultsDisplay({ results, onDownload }: ResultsDisplayProps) {
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
+  const [downloadProgress, setDownloadProgress] = useState<Map<string, number>>(new Map());
 
   const handleDownload = async (resultId: string) => {
     setDownloadingIds(prev => new Set(prev).add(resultId));
@@ -13,8 +14,34 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
       return newErrors;
     });
 
+    // Simulate download progress for better UX
+    const progressInterval = setInterval(() => {
+      setDownloadProgress(prev => {
+        const newProgress = new Map(prev);
+        const currentProgress = newProgress.get(resultId) || 0;
+        if (currentProgress < 90) {
+          newProgress.set(resultId, currentProgress + 10);
+        }
+        return newProgress;
+      });
+    }, 100);
+
     try {
       await onDownload(resultId);
+      setDownloadProgress(prev => {
+        const newProgress = new Map(prev);
+        newProgress.set(resultId, 100);
+        return newProgress;
+      });
+      
+      // Clear progress after a short delay
+      setTimeout(() => {
+        setDownloadProgress(prev => {
+          const newProgress = new Map(prev);
+          newProgress.delete(resultId);
+          return newProgress;
+        });
+      }, 1000);
     } catch (error) {
       setErrors(prev => {
         const newErrors = new Map(prev);
@@ -22,6 +49,7 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
         return newErrors;
       });
     } finally {
+      clearInterval(progressInterval);
       setDownloadingIds(prev => {
         const newIds = new Set(prev);
         newIds.delete(resultId);
@@ -62,6 +90,7 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
         {results.map((result) => {
           const isDownloading = downloadingIds.has(result.id);
           const error = errors.get(result.id);
+          const progress = downloadProgress.get(result.id);
 
           return (
             <div key={result.id} className="result-item">
@@ -91,7 +120,7 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
                   {isDownloading ? (
                     <>
                       <div className="download-spinner"></div>
-                      Downloading...
+                      {progress !== undefined ? `${progress}%` : 'Downloading...'}
                     </>
                   ) : (
                     <>
@@ -101,6 +130,17 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
                   )}
                 </button>
               </div>
+
+              {isDownloading && progress !== undefined && (
+                <div className="download-progress">
+                  <div className="download-progress-bar">
+                    <div 
+                      className="download-progress-fill" 
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div className="result-error">
