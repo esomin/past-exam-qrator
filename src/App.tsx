@@ -205,128 +205,195 @@ function App() {
   }, [])
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>React File Processor</h1>
-        <p>Upload JSON files and process them with multiple classification options</p>
+    <div className="app" role="main">
+      {/* Skip to main content link for accessibility */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
+      <header className="app-header" role="banner">
+        <div className="header-content">
+          <h1 className="app-title">React File Processor</h1>
+          <p className="app-description">
+            Upload JSON files and process them with multiple classification options
+          </p>
+          
+          {/* Server status indicator */}
+          {serverAvailable !== null && (
+            <div className={`server-status ${serverAvailable ? 'online' : 'offline'}`}>
+              <span className="status-indicator" aria-hidden="true">
+                {serverAvailable ? '🟢' : '🔴'}
+              </span>
+              <span className="status-text">
+                Server {serverAvailable ? 'Online' : 'Offline'}
+              </span>
+            </div>
+          )}
+        </div>
       </header>
 
-      <main className="app-main">
-        {/* Server status indicator */}
+      <main id="main-content" className="app-main" role="main">
+        {/* Server connection error */}
         {serverAvailable === false && (
-          <ErrorDisplay
-            error={{
-              message: serverError || 'Unable to connect to the processing server. Please ensure the Python backend is running.',
-              code: 'NETWORK_ERROR',
-              timestamp: new Date(),
-              recoverable: true,
-              retryAction: async () => {
-                const status = await getServerStatus()
-                setServerAvailable(status.available)
-                if (!status.available) {
-                  setServerError(status.error || 'Server is not available')
-                } else {
-                  setServerError(null)
+          <section className="server-error-section" role="alert" aria-live="polite">
+            <ErrorDisplay
+              error={{
+                message: serverError || 'Unable to connect to the processing server. Please ensure the Python backend is running.',
+                code: 'NETWORK_ERROR',
+                timestamp: new Date(),
+                recoverable: true,
+                retryAction: async () => {
+                  const status = await getServerStatus()
+                  setServerAvailable(status.available)
+                  if (!status.available) {
+                    setServerError(status.error || 'Server is not available')
+                  } else {
+                    setServerError(null)
+                  }
                 }
-              }
-            }}
-            className="server-error"
-          />
-        )}
-
-        {/* Error Display Section */}
-        {errors.length > 0 && (
-          <section className="error-section">
-            {errors.length > 1 && (
-              <div className="error-header">
-                <h3>Multiple Errors ({errors.length})</h3>
-                <button className="dismiss-all-btn" onClick={dismissAllErrors}>
-                  Dismiss All
-                </button>
-              </div>
-            )}
-            {errors.map((error, index) => (
-              <ErrorDisplay
-                key={`${error.code}-${error.timestamp.getTime()}`}
-                error={error}
-                onDismiss={() => dismissError(index)}
-                showDetails={true}
-                className="app-error"
-              />
-            ))}
-          </section>
-        )}
-
-        {/* File Upload Section */}
-        <section className="upload-section">
-          <FileUpload 
-            onFileUpload={handleFileUpload}
-            isUploading={isUploading}
-          />
-        </section>
-
-        {/* Processing Options Section */}
-        {uploadedFile && (
-          <section className="options-section">
-            <ProcessingOptions
-              options={processingOptions}
-              onOptionsChange={handleOptionsChange}
-              disabled={!serverAvailable}
-              isProcessing={isProcessing}
+              }}
+              className="server-error"
             />
           </section>
         )}
 
-        {/* Process Button */}
-        {uploadedFile && selectedOptions.length > 0 && (
-          <section className="process-section">
-            <button
-              className={`process-btn ${isProcessing ? 'processing' : ''}`}
-              onClick={handleProcessFile}
-              disabled={!canProcess}
-            >
-              {isProcessing ? (
-                <>
-                  <div className="process-spinner"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <span className="process-icon">⚡</span>
-                  Process File
-                </>
+        {/* Application errors */}
+        {errors.length > 0 && (
+          <section className="error-section" role="alert" aria-live="polite">
+            <div className="error-container">
+              {errors.length > 1 && (
+                <div className="error-header">
+                  <h2 className="error-title">Multiple Errors ({errors.length})</h2>
+                  <button 
+                    className="dismiss-all-btn"
+                    onClick={dismissAllErrors}
+                    aria-label={`Dismiss all ${errors.length} errors`}
+                  >
+                    Dismiss All
+                  </button>
+                </div>
               )}
-            </button>
-          </section>
-        )}
-
-
-
-        {/* Results Display */}
-        {isProcessing && (
-          <section className="results-section">
-            <div className="results-loading">
-              <div className="results-loading-spinner"></div>
-              <div className="results-loading-text">Processing your file...</div>
-              <div className="results-loading-subtext">
-                This may take a few moments depending on file size
-              </div>
+              {errors.map((error, index) => (
+                <ErrorDisplay
+                  key={`${error.code}-${error.timestamp.getTime()}`}
+                  error={error}
+                  onDismiss={() => dismissError(index)}
+                  showDetails={true}
+                  className="app-error"
+                />
+              ))}
             </div>
           </section>
         )}
 
-        {!isProcessing && results.length > 0 && (
-          <section className="results-section">
-            <ResultsDisplay
-              results={results}
-              onDownload={handleDownload}
-            />
+        {/* Application workflow */}
+        <div className="app-workflow">
+          {/* Step 1: File Upload */}
+          <section className="workflow-step upload-step" aria-labelledby="upload-heading">
+            <div className="step-header">
+              <div className="step-number" aria-hidden="true">1</div>
+              <h2 id="upload-heading" className="step-title">Upload File</h2>
+            </div>
+            <div className="step-content">
+              <FileUpload 
+                onFileUpload={handleFileUpload}
+                isUploading={isUploading}
+              />
+            </div>
           </section>
-        )}
+
+          {/* Step 2: Processing Options */}
+          {uploadedFile && (
+            <section className="workflow-step options-step" aria-labelledby="options-heading">
+              <div className="step-header">
+                <div className="step-number" aria-hidden="true">2</div>
+                <h2 id="options-heading" className="step-title">Select Options</h2>
+              </div>
+              <div className="step-content">
+                <ProcessingOptions
+                  options={processingOptions}
+                  onOptionsChange={handleOptionsChange}
+                  disabled={!serverAvailable}
+                  isProcessing={isProcessing}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* Step 3: Process File */}
+          {uploadedFile && selectedOptions.length > 0 && (
+            <section className="workflow-step process-step" aria-labelledby="process-heading">
+              <div className="step-header">
+                <div className="step-number" aria-hidden="true">3</div>
+                <h2 id="process-heading" className="step-title">Process File</h2>
+              </div>
+              <div className="step-content">
+                <button
+                  className={`process-btn ${isProcessing ? 'processing' : ''}`}
+                  onClick={handleProcessFile}
+                  disabled={!canProcess}
+                  aria-describedby="process-description"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="process-spinner" aria-hidden="true"></div>
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="process-icon" aria-hidden="true">⚡</span>
+                      <span>Process File</span>
+                    </>
+                  )}
+                </button>
+                <p id="process-description" className="process-description">
+                  Click to start processing your file with the selected classification options
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Step 4: Results */}
+          {(isProcessing || results.length > 0) && (
+            <section className="workflow-step results-step" aria-labelledby="results-heading">
+              <div className="step-header">
+                <div className="step-number" aria-hidden="true">4</div>
+                <h2 id="results-heading" className="step-title">Download Results</h2>
+              </div>
+              <div className="step-content">
+                {isProcessing && (
+                  <div className="results-loading" role="status" aria-live="polite">
+                    <div className="results-loading-spinner" aria-hidden="true"></div>
+                    <div className="results-loading-text">Processing your file...</div>
+                    <div className="results-loading-subtext">
+                      This may take a few moments depending on file size
+                    </div>
+                  </div>
+                )}
+
+                {!isProcessing && results.length > 0 && (
+                  <ResultsDisplay
+                    results={results}
+                    onDownload={handleDownload}
+                  />
+                )}
+              </div>
+            </section>
+          )}
+        </div>
       </main>
 
-      <footer className="app-footer">
-        <p>Upload your JSON files and select processing options to get started</p>
+      <footer className="app-footer" role="contentinfo">
+        <div className="footer-content">
+          <p className="footer-text">
+            Upload your JSON files and select processing options to get started
+          </p>
+          <div className="footer-info">
+            <span className="app-version">v1.0.0</span>
+            <span className="separator">•</span>
+            <span className="tech-stack">React + Python</span>
+          </div>
+        </div>
       </footer>
 
       {/* Progress Indicator Overlay */}
