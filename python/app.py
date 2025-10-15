@@ -17,6 +17,7 @@ from werkzeug.exceptions import BadRequest
 from main import convert_input_to_answers
 from remove_similarity_duplicates import SimilarityDeduplicator
 from processors.classifier import ClassificationEngine
+from optimize_file_cleanup import ResourceManager
 
 
 app = Flask(__name__)
@@ -24,6 +25,9 @@ CORS(app)  # Enable CORS for React frontend communication
 
 # Global classification engine for managing results
 classification_engine = ClassificationEngine()
+
+# Global resource manager for memory and file optimization
+resource_manager = ResourceManager(max_memory_mb=1000)  # 1GB memory limit
 
 
 class ProcessingError(Exception):
@@ -66,6 +70,7 @@ def validate_json_data(data: Any) -> List[Dict[str, Any]]:
 def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict[str, Any]:
     """
     Process uploaded file data with selected classification options
+    Memory-optimized version with resource management
     
     Args:
         file_data: Base64 encoded JSON file content
@@ -79,6 +84,15 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         ProcessingError: If processing fails
     """
     try:
+        # Check file size before processing
+        file_size_mb = len(file_data) * 3 / 4 / 1024 / 1024  # Estimate decoded size
+        app.logger.info(f"Processing file: {filename} (~{file_size_mb:.1f}MB)")
+        
+        # Implement file size limits
+        max_file_size_mb = 100  # 100MB limit
+        if file_size_mb > max_file_size_mb:
+            raise ProcessingError(f"File too large: {file_size_mb:.1f}MB (max: {max_file_size_mb}MB)")
+        
         # Decode base64 data
         json_content = base64.b64decode(file_data).decode('utf-8')
         input_data = json.loads(json_content)
@@ -86,15 +100,30 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         # Validate input data
         validated_data = validate_json_data(input_data)
         
-        # Convert to answers format with enhanced fields
-        answers = convert_input_to_answers(validated_data)
+        # Check data size limits
+        max_questions = 100000  # 100K questions limit
+        if len(validated_data) > max_questions:
+            raise ProcessingError(f"Too many questions: {len(validated_data)} (max: {max_questions})")
+        
+        # Memory-optimized conversion using resource manager
+        def convert_chunk(chunk):
+            return convert_input_to_answers(chunk)
+        
+        # Process in chunks if dataset is large
+        if len(validated_data) > 5000:
+            app.logger.info(f"Large dataset detected ({len(validated_data)} questions), processing in chunks")
+            answers = resource_manager.process_large_dataset(validated_data, convert_chunk)
+        else:
+            answers = convert_input_to_answers(validated_data)
         
         # Create similarity processor for category classification if needed
         similarity_processor = None
         if 'category' in options:
+            # Use temporary directory managed by resource manager
+            temp_dir = resource_manager.file_manager.create_temp_dir()
             similarity_processor = SimilarityDeduplicator(
                 input_file=None,
-                output_dir=tempfile.gettempdir(),
+                output_dir=temp_dir,
                 threshold=0.8
             )
         
@@ -108,16 +137,24 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         # Convert results to API format
         results = [result.to_dict() for result in classification_results]
         
+        # Log processing statistics
+        app.logger.info(f"Processing completed: {len(validated_data)} questions -> {len(answers)} answers")
+        app.logger.info(f"Classifications generated: {len(results)}")
+        
         return {
             'success': True,
             'results': results,
             'processed_items': len(answers),
-            'original_questions': len(validated_data)
+            'original_questions': len(validated_data),
+            'file_size_mb': file_size_mb
         }
         
     except json.JSONDecodeError as e:
         raise ProcessingError(f"Invalid JSON format: {str(e)}")
+    except MemoryError:
+        raise ProcessingError("File too large to process - insufficient memory")
     except Exception as e:
+        app.logger.error(f"Processing error: {str(e)}")
         raise ProcessingError(f"Processing failed: {str(e)}")
 
 
@@ -302,13 +339,52 @@ def download_file(download_id: str):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    stats = classification_engine.get_stats()
+    """Health check endpoint with resource statistics"""
+    classification_stats = classification_engine.get_stats()
+    resource_stats = resource_manager.cleanup_and_get_stats()
+    
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'classification_stats': stats
+        'classification_stats': classification_stats,
+        'resource_stats': {
+            'current_memory_mb': resource_stats['current_memory_mb'],
+            'registered_temp_files': resource_stats['file_stats']['registered_files'],
+            'processing_stats': resource_stats['processing_stats']
+        }
     })
+
+
+@app.route('/api/cleanup', methods=['POST'])
+def cleanup_resources():
+    """Manual cleanup endpoint for maintenance"""
+    try:
+        # Clean up expired classification results
+        expired_count = classification_engine.cleanup_expired_results(max_age_hours=1)
+        
+        # Clean up resource manager
+        resource_stats = resource_manager.cleanup_and_get_stats()
+        
+        return jsonify({
+            'success': True,
+            'cleanup_stats': {
+                'expired_results_cleaned': expired_count,
+                'files_cleaned': resource_stats['cleanup_stats']['cleaned_files'],
+                'memory_freed': resource_stats['memory_stats']['objects_freed'],
+                'current_memory_mb': resource_stats['current_memory_mb']
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Cleanup error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'CLEANUP_ERROR',
+                'message': 'Failed to cleanup resources',
+                'details': str(e)
+            }
+        }), 500
 
 
 @app.errorhandler(404)

@@ -4,6 +4,7 @@ Classification engine for different grouping options
 
 import uuid
 import tempfile
+import gc
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 from datetime import datetime
