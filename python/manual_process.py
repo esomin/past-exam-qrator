@@ -131,8 +131,8 @@ def process_file_manual(input_file_path: str, options: List[str], output_dir: st
     # 결과 파일 저장
     output_files = []
     for result in classification_results:
-        # 커스텀 파일명 생성
-        custom_filename = f"{output_prefix}_{result.type}_classification.json"
+        # 커스텀 파일명 생성 - main.py와 동일한 형식: [원본파일명]_by_[option name]
+        custom_filename = f"{output_prefix}_by_{result.type}.json"
         output_file = output_dir / custom_filename
         
         print(f"Saving {result.type} classification to: {output_file}")
@@ -145,6 +145,35 @@ def process_file_manual(input_file_path: str, options: List[str], output_dir: st
             'path': str(output_file),
             'items': len(result.data) if isinstance(result.data, (list, dict)) else 0
         })
+        
+        # category 옵션인 경우 removedAnswers 없는 버전도 생성
+        if result.type == 'category' and isinstance(result.data, list):
+            simple_data = []
+            for item in result.data:
+                simple_obj = {
+                    "representativeId": item.get("representativeId"),
+                    "category1": item.get("category1"),
+                    "category2": item.get("category2"),
+                    "question": item.get("question"),
+                    "representativeAnswer": item.get("representativeAnswer"),
+                    "similarityCount": item.get("similarityCount", 0),
+                    "avgSimilarity": item.get("avgSimilarity", 0.0)
+                }
+                simple_data.append(simple_obj)
+            
+            simple_filename = f"{output_prefix}_by_{result.type}_simple.json"
+            simple_output_file = output_dir / simple_filename
+            
+            print(f"Saving {result.type} simple classification to: {simple_output_file}")
+            with open(simple_output_file, 'w', encoding='utf-8') as f:
+                json.dump(simple_data, f, ensure_ascii=False, indent=2)
+            
+            output_files.append({
+                'type': f'{result.type}_simple',
+                'filename': simple_filename,
+                'path': str(simple_output_file),
+                'items': len(simple_data)
+            })
     
     # 처리 결과 반환
     result_summary = {

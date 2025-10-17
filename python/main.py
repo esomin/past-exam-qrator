@@ -43,37 +43,62 @@ def convert_input_to_answers(input_data: List[Dict[str, Any]]) -> List[Dict[str,
     return answers
 
 
-def create_nested_structure_from_groups(similar_groups: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[Dict]]]:
-    """similar_groups에서 nested 구조 생성"""
-    print("Creating nested structure from similarity groups...")
+def create_category_array_from_groups(similar_groups: List[Dict[str, Any]], input_filename: str) -> List[Dict[str, Any]]:
+    """similar_groups를 answer object 배열로 변환하고 두 개의 파일 생성"""
+    print("Creating category array structure from similarity groups...")
     
-    nested_output = defaultdict(lambda: defaultdict(list))
+    # 배열 형식으로 변환
+    result_array = []
     
     for item in similar_groups:
-        category1_key = item['category1']
-        category2_key = item['category2']
-        nested_output[category1_key][category2_key].append(item)
+        # 기본 구조 생성
+        answer_obj = {
+            "representativeId": item.get("representativeId"),
+            "category1": item.get("category1"),
+            "category2": item.get("category2"),
+            "question": item.get("question"),
+            "representativeAnswer": item.get("representativeAnswer"),
+            "similarityCount": item.get("similarityCount", 0),
+            "avgSimilarity": item.get("avgSimilarity", 0.0),
+            "removedAnswers": item.get("removedAnswers", [])
+        }
+        result_array.append(answer_obj)
     
-    # Convert to regular dict
-    result = {
-        cat1: dict(cat2_dict) 
-        for cat1, cat2_dict in nested_output.items()
-    }
+    # 파일명 설정
+    base_name = os.path.splitext(input_filename)[0]
     
-    # 결과 저장
-    output_path = "data/grouped_answers_by_similarity.json"
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+    # 1. removedAnswers 포함 버전 저장
+    output_path_full = f"data/{base_name}_by_category.json"
+    with open(output_path_full, 'w', encoding='utf-8') as f:
+        json.dump(result_array, f, ensure_ascii=False, indent=2)
     
-    print(f'Successfully created: {output_path}')
-    print(f'Total categories: {len(result)}')
-    for cat1 in result:
-        print(f'  {cat1}: {len(result[cat1])} subcategories')
+    print(f'Successfully created: {output_path_full}')
+    print(f'Total items: {len(result_array)}')
     
-    return result
+    # 2. removedAnswers 없는 버전 생성
+    result_array_simple = []
+    for item in result_array:
+        simple_obj = {
+            "representativeId": item["representativeId"],
+            "category1": item["category1"],
+            "category2": item["category2"],
+            "question": item["question"],
+            "representativeAnswer": item["representativeAnswer"],
+            "similarityCount": item["similarityCount"],
+            "avgSimilarity": item["avgSimilarity"]
+        }
+        result_array_simple.append(simple_obj)
+    
+    output_path_simple = f"data/{base_name}_by_category_simple.json"
+    with open(output_path_simple, 'w', encoding='utf-8') as f:
+        json.dump(result_array_simple, f, ensure_ascii=False, indent=2)
+    
+    print(f'Successfully created: {output_path_simple}')
+    
+    return result_array
 
 
-def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+def classify_by_institution(data: List[Dict[str, Any]], input_filename: str) -> Dict[str, List[Dict[str, Any]]]:
     """Group data by institution extracted from solve field"""
     print("Classifying data by institution...")
     
@@ -85,8 +110,9 @@ def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[s
     
     result = dict(institution_groups)
     
-    # 결과 저장
-    output_path = "data/institution_classification.json"
+    # 결과 저장 - 파일명 형식: [원본파일명]_by_[option name]
+    base_name = os.path.splitext(input_filename)[0]
+    output_path = f"data/{base_name}_by_institution.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     
@@ -98,7 +124,7 @@ def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[s
     return result
 
 
-def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+def classify_by_year(data: List[Dict[str, Any]], input_filename: str) -> Dict[str, List[Dict[str, Any]]]:
     """Group data by year extracted from solve field"""
     print("Classifying data by year...")
     
@@ -110,8 +136,9 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
     
     result = dict(year_groups)
     
-    # 결과 저장
-    output_path = "data/year_classification.json"
+    # 결과 저장 - 파일명 형식: [원본파일명]_by_[option name]
+    base_name = os.path.splitext(input_filename)[0]
+    output_path = f"data/{base_name}_by_year.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     
@@ -142,6 +169,7 @@ def main(classification_options: List[str] = None):
         # 1단계: input.json 로드
         print('\nStep 1: Loading input.json...')
         input_path = "data/input.json"
+        input_filename = os.path.basename(input_path)
         with open(input_path, 'r', encoding='utf-8') as f:
             input_data = json.load(f)
         print(f"Loaded {len(input_data)} questions from {input_path}")
@@ -164,27 +192,29 @@ def main(classification_options: List[str] = None):
             # 메모리 데이터로 직접 처리
             _, similar_groups = deduplicator.process_similarity_from_data(answers)
             
-            # Nested 구조 생성 및 저장
-            print('\nStep 3a-final: Creating category nested structure...')
-            results['category'] = create_nested_structure_from_groups(similar_groups)
+            # 배열 구조 생성 및 저장 (두 개의 파일)
+            print('\nStep 3a-final: Creating category array structure...')
+            results['category'] = create_category_array_from_groups(similar_groups, input_filename)
         
         if 'institution' in classification_options:
             print('\nStep 3b: Processing institution-based classification...')
-            results['institution'] = classify_by_institution(answers)
+            results['institution'] = classify_by_institution(answers, input_filename)
         
         if 'year' in classification_options:
             print('\nStep 3c: Processing year-based classification...')
-            results['year'] = classify_by_year(answers)
+            results['year'] = classify_by_year(answers, input_filename)
         
         print('\nEnhanced pipeline processing completed successfully!')
         print('Generated outputs:')
+        base_name = os.path.splitext(input_filename)[0]
         if 'category' in classification_options:
-            print('   - data/grouped_answers_by_similarity.json (Category classification)')
+            print(f'   - data/{base_name}_by_category.json (Category classification with removedAnswers)')
+            print(f'   - data/{base_name}_by_category_simple.json (Category classification without removedAnswers)')
             print('   - data/similarity_deduplication.log (Processing log)')
         if 'institution' in classification_options:
-            print('   - data/institution_classification.json (Institution classification)')
+            print(f'   - data/{base_name}_by_institution.json (Institution classification)')
         if 'year' in classification_options:
-            print('   - data/year_classification.json (Year classification)')
+            print(f'   - data/{base_name}_by_year.json (Year classification)')
         
         return results
         

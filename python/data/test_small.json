@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "title": "지방자치에 대한 설명으로 옳은 것은?",
+    "text": "",
+    "titleType": "POSITIVE",
+    "categoryTitle": "행정학",
+    "answerSet": [
+      {
+        "id": 1,
+        "title": "지방자치는 민주주의의 기초이다",
+        "answerKind": "O"
+      },
+      {
+        "id": 2,
+        "title": "지방자치는 중앙집권을 의미한다",
+        "answerKind": "X"
+      }
+    ],
+    "solve": "2023년 행정고시"
+  },
+  {
+    "id": 2,
+    "title": "공무원의 의무에 관한 내용으로 틀린 것은?",
+    "text": "",
+    "titleType": "NEGATIVE",
+    "categoryTitle": "행정학",
+    "answerSet": [
+      {
+        "id": 3,
+        "title": "성실의무를 져야 한다",
+        "answerKind": "O"
+      },
+      {
+        "id": 4,
+        "title": "복무규정을 무시할 수 있다",
+        "answerKind": "X"
+      }
+    ],
+    "solve": "2022년 지방고시"
+  }
+]

@@ -38,7 +38,7 @@ class ClassificationEngine:
         self.temp_results: Dict[str, ClassificationResult] = {}
     
     def classify_by_category(self, data: List[Dict[str, Any]], 
-                           similarity_processor=None) -> Dict[str, Any]:
+                           similarity_processor=None) -> List[Dict[str, Any]]:
         """
         Group data by category using similarity-based deduplication
         
@@ -47,31 +47,46 @@ class ClassificationEngine:
             similarity_processor: SimilarityDeduplicator instance for processing
             
         Returns:
-            Nested dictionary grouped by category1 and category2
+            Array of answer objects with similarity information
         """
         if similarity_processor is None:
-            # Simple category grouping without similarity processing
-            result = defaultdict(lambda: defaultdict(list))
+            # Simple category grouping without similarity processing - return as array
+            result_array = []
             for item in data:
-                category1 = item.get('category1', 'Unknown')
-                category2 = item.get('category2', 'Unknown')
-                result[category1][category2].append(item)
-            
-            return {cat1: dict(cat2_dict) for cat1, cat2_dict in result.items()}
+                answer_obj = {
+                    "representativeId": item.get("id"),
+                    "category1": item.get("category1", "Unknown"),
+                    "category2": item.get("category2", "Unknown"),
+                    "question": item.get("question", ""),
+                    "representativeAnswer": item.get("answer", ""),
+                    "similarityCount": 0,
+                    "avgSimilarity": 0.0,
+                    "removedAnswers": []
+                }
+                result_array.append(answer_obj)
+            return result_array
         
         # Use similarity processor for advanced grouping
         with tempfile.TemporaryDirectory() as temp_dir:
             similarity_processor.output_dir = temp_dir
             _, similar_groups = similarity_processor.process_similarity_from_data(data)
             
-            # Create nested structure from similarity groups
-            nested_output = defaultdict(lambda: defaultdict(list))
+            # Convert to array format
+            result_array = []
             for item in similar_groups:
-                category1_key = item['category1']
-                category2_key = item['category2']
-                nested_output[category1_key][category2_key].append(item)
+                answer_obj = {
+                    "representativeId": item.get("representativeId"),
+                    "category1": item.get("category1"),
+                    "category2": item.get("category2"),
+                    "question": item.get("question"),
+                    "representativeAnswer": item.get("representativeAnswer"),
+                    "similarityCount": item.get("similarityCount", 0),
+                    "avgSimilarity": item.get("avgSimilarity", 0.0),
+                    "removedAnswers": item.get("removedAnswers", [])
+                }
+                result_array.append(answer_obj)
             
-            return {cat1: dict(cat2_dict) for cat1, cat2_dict in nested_output.items()}
+            return result_array
     
     def classify_by_institution(self, data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Group data by institution extracted from solve field"""
