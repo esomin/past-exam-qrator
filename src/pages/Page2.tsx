@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import json2md from 'json2md'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import './Page2.css'
 
 // 더미 데이터
@@ -48,33 +50,92 @@ const result = json2md([
 
 function Page2() {
   const [markdownOutput, setMarkdownOutput] = useState('')
+  const [isPreviewMode, setIsPreviewMode] = useState(false)
+  const [fullscreenSection, setFullscreenSection] = useState<'input' | 'output' | null>(null)
 
   const handleConvert = () => {
     const markdown = json2md(dummyData)
     setMarkdownOutput(markdown)
+    setIsPreviewMode(false)
+  }
+
+  const togglePreview = () => {
+    setIsPreviewMode(!isPreviewMode)
+  }
+
+  const toggleFullscreen = (section: 'input' | 'output') => {
+    if (fullscreenSection === section) {
+      setFullscreenSection(null)
+    } else {
+      setFullscreenSection(section)
+    }
+  }
+
+  const closeFullscreen = () => {
+    setFullscreenSection(null)
   }
 
   return (
     <main className="page2-container" role="main">
       <div className="page2-content">
-        <div className="converter-section">
-          <div className="input-section">
-            <h2>JSON Input</h2>
+        <div className={`converter-section ${fullscreenSection ? 'has-fullscreen' : ''}`}>
+          <div className={`input-section ${fullscreenSection === 'input' ? 'fullscreen' : ''}`}>
+            <div className="section-header">
+              <h2>JSON Input</h2>
+              <button 
+                className="fullscreen-btn" 
+                onClick={() => toggleFullscreen('input')}
+                title={fullscreenSection === 'input' ? "Exit Fullscreen" : "Fullscreen"}
+              >
+                {fullscreenSection === 'input' ? '✕' : '⛶'}
+              </button>
+            </div>
             <div className="json-display">
               <pre>{JSON.stringify(dummyData, null, 2)}</pre>
             </div>
-            <button className="convert-btn" onClick={handleConvert}>
-              <span className="convert-icon">🔄</span>
-              Convert to Markdown
-            </button>
+            {fullscreenSection !== 'input' && (
+              <button className="convert-btn" onClick={handleConvert}>
+                <span className="convert-icon">🔄</span>
+                Convert to Markdown
+              </button>
+            )}
           </div>
 
-          <div className="output-section">
-            <h2>Markdown Output</h2>
-            {markdownOutput ? (
-              <div className="markdown-display">
-                <pre>{markdownOutput}</pre>
+          <div className={`output-section ${fullscreenSection === 'output' ? 'fullscreen' : ''}`}>
+            <div className="output-header">
+              <h2>Markdown Output</h2>
+              <div className="header-actions">
+                {markdownOutput && (
+                  <button 
+                    className="preview-toggle-btn" 
+                    onClick={togglePreview}
+                    title={isPreviewMode ? "Show Raw Markdown" : "Show Preview"}
+                  >
+                    {isPreviewMode ? '📄' : '🔍'}
+                  </button>
+                )}
+                <button 
+                  className="fullscreen-btn" 
+                  onClick={() => toggleFullscreen('output')}
+                  title={fullscreenSection === 'output' ? "Exit Fullscreen" : "Fullscreen"}
+                  disabled={!markdownOutput}
+                >
+                  {fullscreenSection === 'output' ? '✕' : '⛶'}
+                </button>
               </div>
+            </div>
+            {markdownOutput ? (
+              isPreviewMode ? (
+                <div className="markdown-preview">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {markdownOutput}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="markdown-raw">
+                  <pre>{markdownOutput}</pre>
+                </div>
+              )
             ) : (
               <div className="empty-state">
                 <span className="empty-icon">📝</span>
@@ -84,6 +145,10 @@ function Page2() {
           </div>
         </div>
       </div>
+
+      {fullscreenSection && (
+        <div className="fullscreen-overlay" onClick={closeFullscreen} />
+      )}
     </main>
   )
 }
