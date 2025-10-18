@@ -1,11 +1,11 @@
-.page2-container {
+.json-to-markdown-page {
   flex: 1;
   width: 100%;
   padding: 2rem;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-.page2-content {
+.page-content {
   width: 100%;
   max-width: 100%;
   padding: 0 2rem;
@@ -126,7 +126,6 @@
   line-height: 1.6;
 }
 
-/* Markdown 스타일링 */
 .markdown-preview h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -285,7 +284,6 @@
   font-size: 1.1rem;
 }
 
-/* Fullscreen Styles */
 .converter-section.has-fullscreen {
   position: relative;
 }
@@ -342,7 +340,7 @@
 }
 
 @media (max-width: 768px) {
-  .page2-container {
+  .json-to-markdown-page {
     padding: 1rem;
   }
 
@@ -351,8 +349,8 @@
     padding: 1.5rem;
   }
 
-  .input-section h2,
-  .output-section h2 {
+  .section-header h2,
+  .output-header h2 {
     font-size: 1.25rem;
   }
 

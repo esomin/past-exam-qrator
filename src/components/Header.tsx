@@ -14,8 +14,14 @@ function Header() {
           File Processor
         </Link>
         <Link
-          to="/page2"
-          className={`nav-link ${location.pathname === '/page2' ? 'active' : ''}`}
+          to="/json-validator"
+          className={`nav-link ${location.pathname === '/json-validator' ? 'active' : ''}`}
+        >
+          JSON Validator
+        </Link>
+        <Link
+          to="/json-to-markdown"
+          className={`nav-link ${location.pathname === '/json-to-markdown' ? 'active' : ''}`}
         >
           JSON to Markdown
         </Link>

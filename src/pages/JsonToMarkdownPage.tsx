@@ -2,9 +2,8 @@ import { useState } from 'react'
 import json2md from 'json2md'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import './Page2.css'
+import './JsonToMarkdownPage.css'
 
-// 더미 데이터
 const dummyData = [
   { h1: 'Project Documentation' },
   { p: 'This is a sample project documentation generated from JSON data.' },
@@ -48,7 +47,7 @@ const result = json2md([
   { p: 'This tool makes it easy to convert JSON data into readable Markdown format.' }
 ]
 
-function Page2() {
+function JsonToMarkdownPage() {
   const [markdownOutput, setMarkdownOutput] = useState('')
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [fullscreenSection, setFullscreenSection] = useState<'input' | 'output' | null>(null)
@@ -76,8 +75,8 @@ function Page2() {
   }
 
   return (
-    <main className="page2-container" role="main">
-      <div className="page2-content">
+    <main className="json-to-markdown-page" role="main">
+      <div className="page-content">
         <div className={`converter-section ${fullscreenSection ? 'has-fullscreen' : ''}`}>
           <div className={`input-section ${fullscreenSection === 'input' ? 'fullscreen' : ''}`}>
             <div className="section-header">
@@ -153,4 +152,4 @@ function Page2() {
   )
 }
 
-export default Page2
+export default JsonToMarkdownPage

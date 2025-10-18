@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import FileProcessorPage from './pages/FileProcessorPage'
-import Page2 from './pages/Page2'
+import JsonValidatorPage from './pages/JsonValidatorPage'
+import JsonToMarkdownPage from './pages/JsonToMarkdownPage'
 import './App.css'
 
 function App() {
@@ -16,7 +17,8 @@ function App() {
 
         <Routes>
           <Route path="/" element={<FileProcessorPage />} />
-          <Route path="/page2" element={<Page2 />} />
+          <Route path="/json-validator" element={<JsonValidatorPage />} />
+          <Route path="/json-to-markdown" element={<JsonToMarkdownPage />} />
         </Routes>
 
         <footer className="app-footer" role="contentinfo">
