@@ -93,6 +93,168 @@
   cursor: not-allowed;
 }
 
+.json-input-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.json-editor-container {
+  position: relative;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  min-height: 300px;
+  max-height: 600px;
+  overflow: hidden;
+}
+
+.json-editor-container:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.json-editor-container.has-error {
+  border-color: #e53e3e;
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
+}
+
+.json-editor-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #2d3748;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  z-index: 2;
+  white-space: pre;
+  word-wrap: break-word;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.json-editor-textarea::placeholder {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+.json-editor-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.json-editor-highlight pre {
+  margin: 0 !important;
+  padding: 1rem !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.json-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #fed7d7;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+  color: #c53030;
+  font-size: 0.875rem;
+}
+
+.error-icon {
+  font-size: 1rem;
+}
+
+.error-message {
+  font-weight: 500;
+}
+
+.action-btn {
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  font-size: 1rem;
+  z-index: 2;
+}
+
+.btn-text {
+  z-index: 2;
+  font-weight: 600;
+}
+
+.upload-btn {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+.upload-btn:hover {
+  box-shadow: 0 4px 12px rgba(237, 137, 54, 0.4);
+}
+
+.sample-btn {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.sample-btn:hover {
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
+.copy-btn {
+  background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+}
+
+.copy-btn:hover {
+  box-shadow: 0 4px 12px rgba(159, 122, 234, 0.4);
+}
+
+.copy-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+}
+
+.download-btn:hover {
+  box-shadow: 0 4px 12px rgba(56, 178, 172, 0.4);
+}
+
 .json-display,
 .markdown-raw {
   background: #f8f9fa;
@@ -305,6 +467,11 @@
   overflow: auto;
 }
 
+.input-section.fullscreen .json-editor-container {
+  min-height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px);
+}
+
 .input-section.fullscreen .json-display,
 .output-section.fullscreen .markdown-raw,
 .output-section.fullscreen .markdown-preview {
@@ -332,6 +499,11 @@
     grid-template-columns: 1fr;
   }
 
+  .json-editor-container {
+    min-height: 250px;
+    max-height: 500px;
+  }
+
   .json-display,
   .markdown-display {
     max-height: 400px;
@@ -352,6 +524,25 @@
   .section-header h2,
   .output-header h2 {
     font-size: 1.25rem;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .action-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .json-editor-container {
+    min-height: 200px;
+    max-height: 400px;
+  }
+
+  .json-editor-textarea {
+    font-size: 13px;
   }
 
   .json-display,
