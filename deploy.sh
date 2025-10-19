@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Google Cloud Compute Engine 배포 스크립트
-# Ubuntu 22.04 LTS 환경에서 실행
+# Ubuntu 22.04 LTS 및 Debian 12(Bookworm) 환경에서 실행 가능
 
 set -e
 
@@ -35,20 +35,36 @@ sudo apt-get upgrade -y
 if ! command -v docker &> /dev/null; then
     log_info "Docker 설치 중..."
     sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # OS 감지 (Ubuntu / Debian)
+    if grep -qi debian /etc/os-release; then
+        DISTRO="debian"
+    else
+        DISTRO="ubuntu"
+    fi
+
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/${DISTRO}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+      https://download.docker.com/linux/${DISTRO} $(lsb_release -cs) stable" \
+      | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
     sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
     sudo usermod -aG docker $USER
     log_info "Docker 설치 완료"
 else
     log_info "Docker가 이미 설치되어 있습니다"
 fi
 
-# Docker Compose 설치
+# Docker Compose 설치 (별도 바이너리 버전)
 if ! command -v docker-compose &> /dev/null; then
     log_info "Docker Compose 설치 중..."
-    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+        -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
     log_info "Docker Compose 설치 완료"
 else
@@ -61,13 +77,18 @@ mkdir -p data temp ssl
 
 # 방화벽 설정
 log_info "방화벽 규칙 설정 중..."
+if ! command -v ufw &> /dev/null; then
+    log_warn "ufw가 설치되어 있지 않습니다. 설치 중..."
+    sudo apt-get install -y ufw
+fi
+
 sudo ufw allow 22/tcp    # SSH
 sudo ufw allow 80/tcp    # HTTP
 sudo ufw allow 443/tcp   # HTTPS
 sudo ufw allow 5001/tcp  # Flask 개발 포트
 sudo ufw --force enable
 
-# SSL 인증서 생성 (자체 서명, 프로덕션에서는 Let's Encrypt 사용 권장)
+# SSL 인증서 생성 (자체 서명, 프로덕션에서는 Let's Encrypt 권장)
 if [ ! -f ssl/cert.pem ]; then
     log_info "자체 서명 SSL 인증서 생성 중..."
     sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
