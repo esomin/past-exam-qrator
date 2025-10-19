@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { ErrorState } from '../types';
 import { ErrorHandler } from '../utils/errorHandler';
 

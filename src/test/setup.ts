@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
 // Mock window.URL.createObjectURL
 Object.defineProperty(window, 'URL', {
@@ -21,22 +22,22 @@ Object.defineProperty(window, 'FileReader', {
     onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
     onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
     
-    readAsText(file: Blob) {
+    readAsText(_file: Blob) {
       setTimeout(() => {
         this.readyState = 2
         this.result = '{"test": "data"}'
         if (this.onload) {
-          this.onload({} as ProgressEvent<FileReader>)
+          (this.onload as any)({} as ProgressEvent<FileReader>)
         }
       }, 0)
     }
     
-    readAsDataURL(file: Blob) {
+    readAsDataURL(_file: Blob) {
       setTimeout(() => {
         this.readyState = 2
         this.result = 'data:application/json;base64,eyJ0ZXN0IjoiZGF0YSJ9'
         if (this.onload) {
-          this.onload({} as ProgressEvent<FileReader>)
+          (this.onload as any)({} as ProgressEvent<FileReader>)
         }
       }, 0)
     }

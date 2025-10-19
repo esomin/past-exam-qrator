@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FileUpload from '../components/FileUpload'
-import { createMockFile } from './utils'
+// import { createMockFile } from './utils' // Unused import
 
 describe('FileUpload Component - Core Functionality', () => {
   const mockOnFileUpload = vi.fn()

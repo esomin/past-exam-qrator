@@ -1,4 +1,4 @@
-import { ProcessingOption, ProcessingResult } from '../types'
+import type { ProcessingOption, ProcessingResult } from '../types'
 
 // Test data factories
 export const createMockFile = (
@@ -61,8 +61,8 @@ export const createMockDragEvent = (files: File[]): DragEvent => {
   }
   
   return {
-    preventDefault: vi.fn(),
-    stopPropagation: vi.fn(),
+    preventDefault: () => {},
+    stopPropagation: () => {},
     dataTransfer: mockDataTransfer
   } as any as DragEvent
 }

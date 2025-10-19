@@ -290,7 +290,7 @@ describe('FileUpload Component', () => {
 
     it('supports keyboard navigation', async () => {
       const user = userEvent.setup()
-      const validFile = createMockFile('keyboard.json', 'application/json', JSON.stringify(validTestJsonData))
+      // const validFile = createMockFile('keyboard.json', 'application/json', JSON.stringify(validTestJsonData)) // Unused variable
       
       render(<FileUpload onFileUpload={mockOnFileUpload} isUploading={false} />)
       

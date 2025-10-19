@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed - not needed in React 17+
 
 interface ProgressIndicatorProps {
   isVisible: boolean;
