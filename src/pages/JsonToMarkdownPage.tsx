@@ -6,7 +6,97 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import './JsonToMarkdownPage.css'
 
-const dummyData = [
+// 커스텀 JSON to Markdown 변환 함수
+const convertJsonToMarkdown = (jsonData: any): string => {
+  try {
+    // 년도별 데이터 구조 확인 (예: {"2021": [...], "2022": [...]})
+    if (typeof jsonData === 'object' && !Array.isArray(jsonData)) {
+      let markdown = ''
+
+      for (const [year, data] of Object.entries(jsonData)) {
+        if (Array.isArray(data) && data.length > 0) {
+          // 년도를 헤더로 추가
+          markdown += `# ${year}\n\n`
+
+          // 첫 번째 객체의 키를 테이블 헤더로 사용
+          const headers = Object.keys(data[0])
+
+          // 테이블 헤더 생성
+          markdown += '|' + headers.join('|') + '|\n'
+          markdown += '|' + headers.map(() => '---').join('|') + '|\n'
+
+          // 테이블 데이터 생성
+          data.forEach((item: any) => {
+            const row = headers.map(header => {
+              let value = item[header]
+              // boolean 값을 대문자로 변환
+              if (typeof value === 'boolean') {
+                value = value ? 'TRUE' : 'FALSE'
+              }
+              // 파이프 문자 이스케이프
+              if (typeof value === 'string') {
+                value = value.replace(/\|/g, '\\|')
+              }
+              return value || ''
+            })
+            markdown += '|' + row.join('|') + '|\n'
+          })
+
+          markdown += '\n'
+        }
+      }
+
+      return markdown
+    }
+
+    // 기존 json2md 형식 처리
+    return json2md(jsonData)
+  } catch (error) {
+    throw error
+  }
+}
+
+// 샘플 데이터 - 년도별 테이블 형식
+const dummyData = {
+  "2021": [
+    {
+      "id": 76823,
+      "category1": "1) 인사행정의 기초",
+      "category2": "은 공무원 인사제도",
+      "institution": "경찰간부",
+      "year": "2021",
+      "solve": "경찰간부 / 2021",
+      "question": "다음은 공무원 인사제도에 대한 설명이다. 옳은 지문은 몇 개인가?",
+      "answer": "0개",
+      "isTrue": false
+    },
+    {
+      "id": 76824,
+      "category1": "1) 인사행정의 기초",
+      "category2": "은 공무원 인사제도",
+      "institution": "경찰간부",
+      "year": "2021",
+      "solve": "경찰간부 / 2021",
+      "question": "다음은 공무원 인사제도에 대한 설명이다. 옳은 지문은 몇 개인가?",
+      "answer": "1개",
+      "isTrue": false
+    },
+    {
+      "id": 76825,
+      "category1": "1) 인사행정의 기초",
+      "category2": "은 공무원 인사제도",
+      "institution": "경찰간부",
+      "year": "2021",
+      "solve": "경찰간부 / 2021",
+      "question": "다음은 공무원 인사제도에 대한 설명이다. 옳은 지문은 몇 개인가?",
+      "answer": "2개",
+      "isTrue": true
+    }
+  ]
+}
+
+// 기존 json2md 형식 샘플 데이터
+const json2mdSampleData = [
   { h1: 'Project Documentation' },
   { p: 'This is a sample project documentation generated from JSON data.' },
   { h2: 'Features' },
@@ -55,145 +145,28 @@ function JsonToMarkdownPage() {
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [fullscreenSection, setFullscreenSection] = useState<'input' | 'output' | null>(null)
   const [jsonError, setJsonError] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [shouldHighlight, setShouldHighlight] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // 복사-붙여넣기 감지 및 최적화
-  useEffect(() => {
-    // 대용량 텍스트 감지
-    const isLargeText = jsonInput.length > 5000
-    
-    if (isLargeText) {
-      // 대용량 텍스트의 경우 syntax highlighting 비활성화
-      setShouldHighlight(false)
-      setIsProcessing(true)
-      
-      // 처리 완료 표시를 위한 짧은 지연
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current)
-      }
-      
-      processingTimeoutRef.current = setTimeout(() => {
-        setIsProcessing(false)
-      }, 300)
-    } else {
-      // 소용량 텍스트는 즉시 syntax highlighting 활성화
-      setShouldHighlight(true)
-      setIsProcessing(false)
-    }
-
-    return () => {
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current)
-      }
-    }
-  }, [jsonInput])
-
-
 
   const handleConvert = () => {
     try {
       const parsedJson = JSON.parse(jsonInput)
-      const markdown = json2md(parsedJson)
+      const markdown = convertJsonToMarkdown(parsedJson)
       setMarkdownOutput(markdown)
       setJsonError('')
       setIsPreviewMode(false)
     } catch (error) {
-      setJsonError(error instanceof Error ? error.message : 'Invalid JSON or unsupported json2md format')
+      setJsonError(error instanceof Error ? error.message : 'Invalid JSON format or conversion error')
       setMarkdownOutput('')
     }
   }
 
   const handleJsonInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value
-    const isLargeChange = Math.abs(newValue.length - jsonInput.length) > 1000
-    
-    setJsonInput(newValue)
+    setJsonInput(e.target.value)
     setJsonError('')
-    
-    // 대용량 복사-붙여넣기 감지
-    if (isLargeChange && newValue.length > 5000) {
-      setIsProcessing(true)
-      setShouldHighlight(false)
-    }
-  }, [jsonInput.length])
-
-  // 복사-붙여넣기 이벤트 직접 처리
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const pastedText = e.clipboardData.getData('text')
-    
-    if (pastedText.length > 5000) {
-      // 대용량 붙여넣기 최적화
-      setIsProcessing(true)
-      setShouldHighlight(false)
-      
-      // 즉시 처리 완료 표시
-      setTimeout(() => {
-        setIsProcessing(false)
-      }, 200)
-    }
   }, [])
 
-  // 복사-붙여넣기 최적화된 JSON 하이라이팅
+  // JSON 하이라이팅 (스크롤 가능)
   const jsonHighlightElement = useMemo(() => {
-    // 처리 중이거나 syntax highlighting이 비활성화된 경우
-    if (isProcessing) {
-      return (
-        <div style={{
-          margin: 0,
-          padding: '1rem',
-          background: 'transparent',
-          fontSize: '14px',
-          lineHeight: '1.5',
-          fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-          minHeight: '300px',
-          maxHeight: '600px',
-          overflow: 'hidden',
-          pointerEvents: 'none',
-          color: '#6b7280',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: '1rem'
-        }}>
-          <div style={{ 
-            width: '32px', 
-            height: '32px', 
-            border: '3px solid #374151',
-            borderTop: '3px solid #6366f1',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }} />
-          <span>Processing large JSON...</span>
-        </div>
-      )
-    }
-
-    if (!shouldHighlight || jsonInput.length > 5000) {
-      return (
-        <pre style={{
-          margin: 0,
-          padding: '1rem',
-          background: 'transparent',
-          fontSize: '14px',
-          lineHeight: '1.5',
-          fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-          minHeight: '300px',
-          maxHeight: '600px',
-          overflow: 'hidden',
-          pointerEvents: 'none',
-          color: '#f9fafb',
-          whiteSpace: 'pre-wrap',
-          wordWrap: 'break-word'
-        }}>
-          {jsonInput || ' '}
-        </pre>
-      )
-    }
-    
     return (
       <SyntaxHighlighter
         language="json"
@@ -207,7 +180,7 @@ function JsonToMarkdownPage() {
           fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
           minHeight: '300px',
           maxHeight: '600px',
-          overflow: 'hidden',
+          overflow: 'auto',
           pointerEvents: 'none'
         }}
         showLineNumbers={false}
@@ -216,34 +189,10 @@ function JsonToMarkdownPage() {
         {jsonInput || ' '}
       </SyntaxHighlighter>
     )
-  }, [jsonInput, shouldHighlight, isProcessing])
+  }, [jsonInput])
 
-  // Memoized markdown preview
+  // Markdown preview
   const markdownPreviewElement = useMemo(() => {
-    // 대용량 마크다운의 경우 간단한 렌더링
-    if (markdownOutput.length > 50000) {
-      return (
-        <div style={{ 
-          padding: '1rem',
-          color: '#d1d5db',
-          fontSize: '14px',
-          lineHeight: '1.6',
-          whiteSpace: 'pre-wrap',
-          wordWrap: 'break-word'
-        }}>
-          <p style={{ color: '#fbbf24', marginBottom: '1rem' }}>
-            ⚠️ Large content detected. Showing simplified preview for better performance.
-          </p>
-          {markdownOutput.substring(0, 5000)}
-          {markdownOutput.length > 5000 && (
-            <p style={{ color: '#9ca3af', fontStyle: 'italic', marginTop: '1rem' }}>
-              ... and {markdownOutput.length - 5000} more characters
-            </p>
-          )}
-        </div>
-      )
-    }
-    
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
@@ -272,25 +221,8 @@ function JsonToMarkdownPage() {
     )
   }, [markdownOutput])
 
-  // Memoized markdown raw display
+  // Markdown raw display
   const markdownRawElement = useMemo(() => {
-    // 대용량 마크다운의 경우 syntax highlighting 비활성화
-    if (markdownOutput.length > 10000) {
-      return (
-        <pre style={{
-          margin: 0,
-          borderRadius: '4px',
-          fontSize: '14px',
-          color: '#f9fafb',
-          whiteSpace: 'pre-wrap',
-          wordWrap: 'break-word',
-          padding: '1rem'
-        }}>
-          {markdownOutput}
-        </pre>
-      )
-    }
-    
     return (
       <SyntaxHighlighter
         language="markdown"
@@ -311,7 +243,10 @@ function JsonToMarkdownPage() {
     setJsonError('')
   }
 
-
+  const handleLoadJson2mdSample = () => {
+    setJsonInput(JSON.stringify(json2mdSampleData, null, 2))
+    setJsonError('')
+  }
 
   const togglePreview = () => {
     setIsPreviewMode(!isPreviewMode)
@@ -328,8 +263,6 @@ function JsonToMarkdownPage() {
   const closeFullscreen = () => {
     setFullscreenSection(null)
   }
-
-
 
   // Input upload functionality
   const handleFileUpload = () => {
@@ -405,10 +338,18 @@ function JsonToMarkdownPage() {
                 <button
                   className="action-btn sample-btn"
                   onClick={handleLoadSample}
+                  title="Load Table Sample Data"
+                >
+                  <span className="btn-icon">📊</span>
+                  <span className="btn-text">Table Sample</span>
+                </button>
+                <button
+                  className="action-btn sample-btn"
+                  onClick={handleLoadJson2mdSample}
                   title="Load json2md Sample Data"
                 >
                   <span className="btn-icon">📄</span>
-                  <span className="btn-text">Sample</span>
+                  <span className="btn-text">json2md Sample</span>
                 </button>
                 <button
                   className="fullscreen-btn"
@@ -434,8 +375,7 @@ function JsonToMarkdownPage() {
                   className="json-editor-textarea"
                   value={jsonInput}
                   onChange={handleJsonInputChange}
-                  onPaste={handlePaste}
-                  placeholder="Enter json2md format JSON data..."
+                  placeholder="Enter JSON data (supports both table format and json2md format)..."
                   spellCheck={false}
                 />
                 <div className="json-editor-highlight">

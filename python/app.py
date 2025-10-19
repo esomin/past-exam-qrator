@@ -8,13 +8,14 @@ import json
 import uuid
 import base64
 import tempfile
+import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+from collections import defaultdict
 from flask import Flask, request, jsonify, send_file, abort
 from flask_cors import CORS
 from werkzeug.exceptions import BadRequest
 
-from main import convert_input_to_answers
 from remove_similarity_duplicates import SimilarityDeduplicator
 from processors.classifier import ClassificationEngine
 from optimize_file_cleanup import ResourceManager
@@ -33,6 +34,181 @@ resource_manager = ResourceManager(max_memory_mb=1000)  # 1GB memory limit
 class ProcessingError(Exception):
     """Custom exception for processing errors"""
     pass
+
+
+def extract_institution_from_solve(solve: str) -> str:
+    """solve 필드에서 기관명 추출"""
+    if not solve:
+        return "Unknown"
+    
+    # 일반적인 패턴: "기관명 / 연도" 또는 "기관명"
+    parts = solve.split('/')
+    if parts:
+        return parts[0].strip()
+    return solve.strip()
+
+
+def extract_year_from_solve(solve: str) -> str:
+    """solve 필드에서 연도 추출"""
+    if not solve:
+        return "Unknown"
+    
+    # 4자리 숫자 패턴 찾기
+    year_match = re.search(r'\b(20\d{2}|19\d{2})\b', solve)
+    if year_match:
+        return year_match.group(1)
+    return "Unknown"
+
+
+def determine_is_correct(title_type: str, answer_kind: str) -> Optional[bool]:
+    """titleType과 answerKind를 기반으로 isCorrect 값 결정"""
+    if title_type == "NEGATIVE" and answer_kind == "X":
+        return True
+    elif title_type == "POSITIVE" and answer_kind == "O":
+        return True
+    elif title_type == "NEGATIVE" and answer_kind == "O":
+        return False
+    elif title_type == "POSITIVE" and answer_kind == "X":
+        return False
+    else:
+        # titleType이 NEGATIVE도 POSITIVE도 아닌 경우
+        return None
+
+
+def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """원본 데이터를 플래튼하여 필요한 속성만 추출하고 통계 정보 반환"""
+    flattened_data = []
+    seen_ids = set()  # ID 중복 체크용
+    
+    # 통계 정보
+    original_questions = len(input_data)
+    original_answers = 0
+    duplicate_count = 0
+    
+    for question in input_data:
+        # question 레벨 속성 추출
+        question_data = {
+            "answerRate": question.get("answerRate"),
+            "title": question.get("title"),
+            "titleType": question.get("titleType"),
+            "solve": question.get("solve"),
+            "categoryTitle": question.get("categoryTitle")
+        }
+        
+        # solve에서 기관과 연도 추출
+        institution = extract_institution_from_solve(question_data["solve"] or "")
+        year = extract_year_from_solve(question_data["solve"] or "")
+        
+        # answerSet의 각 항목 처리
+        answer_set = question.get("answerSet", [])
+        original_answers += len(answer_set)
+        
+        for answer in answer_set:
+            # ID 중복 체크
+            answer_id = answer.get("id")
+            if answer_id in seen_ids:
+                duplicate_count += 1
+                continue  # 중복된 ID는 건너뛰기
+            seen_ids.add(answer_id)
+            
+            # answerSet 항목 속성 추출
+            answer_data = {
+                "id": answer_id,
+                "answer_title": answer.get("title"),
+                "commentary": answer.get("commentary"),
+                "answerKind": answer.get("answerKind")
+            }
+            
+            # isCorrect 결정
+            is_correct = determine_is_correct(
+                question_data["titleType"], 
+                answer_data["answerKind"]
+            )
+            
+            # 최종 플래튼 항목 생성 (solve 제거, institution/year 추가)
+            flattened_item = {
+                # question 속성들
+                "answerRate": question_data["answerRate"],
+                "question_title": question_data["title"],
+                "titleType": question_data["titleType"],
+                "categoryTitle": question_data["categoryTitle"],
+                "institution": institution,
+                "year": year,
+                
+                # answer 속성들
+                "id": answer_data["id"],
+                "answer_title": answer_data["answer_title"],
+                "commentary": answer_data["commentary"],
+                "answerKind": answer_data["answerKind"],
+                
+                # 계산된 속성
+                "isCorrect": is_correct
+            }
+            
+            flattened_data.append(flattened_item)
+    
+    # categoryTitle로 정렬
+    flattened_data.sort(key=lambda x: (x.get('categoryTitle', ''), x.get('id', 0)))
+    
+    # 결과 문제 수 계산 (고유한 question_title 개수)
+    unique_questions = len(set(item.get('question_title', '') for item in flattened_data))
+    
+    stats = {
+        'original_questions': original_questions,
+        'original_answers': original_answers,
+        'result_questions': unique_questions,
+        'result_answers': len(flattened_data),
+        'duplicate_count': duplicate_count
+    }
+    
+    return flattened_data, stats
+
+
+def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """플래튼된 데이터를 기관별로 분류"""
+    institution_groups = defaultdict(list)
+    
+    for item in data:
+        institution = item.get('institution', 'Unknown')
+        institution_groups[institution].append(item)
+    
+    # 각 기관별로 categoryTitle, 연도순, ID순 정렬
+    for institution in institution_groups:
+        institution_groups[institution].sort(key=lambda x: (
+            x.get('categoryTitle', ''), 
+            x.get('year', 'Unknown'), 
+            x.get('id', 0)
+        ))
+    
+    return dict(institution_groups)
+
+
+def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """플래튼된 데이터를 연도별로 분류"""
+    year_groups = defaultdict(list)
+    
+    for item in data:
+        year = item.get('year', 'Unknown')
+        year_groups[year].append(item)
+    
+    # 각 연도별로 categoryTitle, ID순 정렬
+    for year in year_groups:
+        year_groups[year].sort(key=lambda x: (
+            x.get('categoryTitle', ''), 
+            x.get('id', 0)
+        ))
+    
+    # 연도순으로 정렬된 결과 생성
+    sorted_years = sorted(year_groups.keys(), key=lambda x: x if x != 'Unknown' else '0000')
+    result = {year: year_groups[year] for year in sorted_years}
+    
+    return result
+
+
+def convert_input_to_answers(input_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """기존 호환성을 위한 래퍼 함수 - 플래튼된 데이터 반환"""
+    flattened_data, _ = flatten_original_data(input_data)
+    return flattened_data
 
 
 def validate_json_data(data: Any) -> List[Dict[str, Any]]:
@@ -107,14 +283,29 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         
         # Memory-optimized conversion using resource manager
         def convert_chunk(chunk):
-            return convert_input_to_answers(chunk)
+            return flatten_original_data(chunk)
         
         # Process in chunks if dataset is large
         if len(validated_data) > 5000:
             app.logger.info(f"Large dataset detected ({len(validated_data)} questions), processing in chunks")
-            answers = resource_manager.process_large_dataset(validated_data, convert_chunk)
+            flattened_data = resource_manager.process_large_dataset(validated_data, convert_chunk)
         else:
-            answers = convert_input_to_answers(validated_data)
+            flattened_data = flatten_original_data(validated_data)
+        
+        # 분류 옵션에 따라 다른 처리
+        results_data = {}
+        
+        if 'flatten' in options:
+            results_data['flatten'] = flattened_data
+        
+        if 'institution' in options:
+            results_data['institution'] = classify_by_institution(flattened_data)
+        
+        if 'year' in options:
+            results_data['year'] = classify_by_year(flattened_data)
+        
+        # 기존 카테고리 분류를 위한 답변 형태 변환 (필요시)
+        answers = flattened_data  # 기본적으로 플래튼된 데이터 사용
         
         # Create similarity processor for category classification if needed
         similarity_processor = None
@@ -127,24 +318,81 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
                 threshold=0.8
             )
         
-        # Process multiple classifications using the engine
-        classification_results = classification_engine.process_multiple_classifications(
-            data=answers,
-            options=options,
-            similarity_processor=similarity_processor
-        )
+        # 새로운 분류 결과를 API 형식으로 변환
+        api_results = []
         
-        # Convert results to API format
-        results = [result.to_dict() for result in classification_results]
+        for option in options:
+            if option in results_data:
+                # 각 분류 결과를 저장하고 다운로드 ID 생성
+                download_id = str(uuid.uuid4())
+                filename = f"{os.path.splitext(filename)[0]}_{option}.json"
+                
+                # 분류 엔진에 결과 저장 (임시)
+                from dataclasses import dataclass
+                from datetime import datetime
+                
+                @dataclass
+                class ClassificationResult:
+                    id: str
+                    type: str
+                    filename: str
+                    data: Any
+                    created_at: datetime
+                    
+                    def to_dict(self):
+                        return {
+                            'type': self.type,
+                            'filename': self.filename,
+                            'download_id': self.id
+                        }
+                
+                result = ClassificationResult(
+                    id=download_id,
+                    type=option,
+                    filename=filename,
+                    data=results_data[option],
+                    created_at=datetime.now()
+                )
+                
+                # 결과 저장 (classification_engine 대신 간단한 저장소 사용)
+                if not hasattr(app, 'stored_results'):
+                    app.stored_results = {}
+                app.stored_results[download_id] = result
+                
+                api_results.append(result.to_dict())
+        
+        # 기존 카테고리 분류 처리 (필요시)
+        if 'category' in options and similarity_processor:
+            try:
+                _, similar_groups = similarity_processor.process_similarity_from_data(answers)
+                
+                download_id = str(uuid.uuid4())
+                category_filename = f"{os.path.splitext(filename)[0]}_category.json"
+                
+                result = ClassificationResult(
+                    id=download_id,
+                    type='category',
+                    filename=category_filename,
+                    data=similar_groups,
+                    created_at=datetime.now()
+                )
+                
+                app.stored_results[download_id] = result
+                api_results.append(result.to_dict())
+                
+            except Exception as e:
+                app.logger.warning(f"Category classification failed: {str(e)}")
+        
+        results = api_results
         
         # Log processing statistics
-        app.logger.info(f"Processing completed: {len(validated_data)} questions -> {len(answers)} answers")
+        app.logger.info(f"Processing completed: {len(validated_data)} questions -> {len(flattened_data)} flattened items")
         app.logger.info(f"Classifications generated: {len(results)}")
         
         return {
             'success': True,
             'results': results,
-            'processed_items': len(answers),
+            'processed_items': len(flattened_data),
             'original_questions': len(validated_data),
             'file_size_mb': file_size_mb
         }
@@ -212,7 +460,7 @@ def process_file():
                 }), 400
         
         # Validate options
-        valid_options = {'category', 'institution', 'year'}
+        valid_options = {'category', 'institution', 'year', 'flatten'}
         options = data['options']
         
         if not isinstance(options, list) or not options:
@@ -279,9 +527,8 @@ def download_file(download_id: str):
         JSON file download or error response
     """
     try:
-        # Check if download ID exists
-        result = classification_engine.get_result(download_id)
-        if result is None:
+        # Check if download ID exists in stored results
+        if not hasattr(app, 'stored_results') or download_id not in app.stored_results:
             return jsonify({
                 'success': False,
                 'error': {
@@ -290,6 +537,8 @@ def download_file(download_id: str):
                     'details': 'The requested file may have expired or does not exist'
                 }
             }), 404
+        
+        result = app.stored_results[download_id]
         
         # Create temporary file for download
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as temp_file:
@@ -310,8 +559,9 @@ def download_file(download_id: str):
             def cleanup():
                 try:
                     os.unlink(temp_file_path)
-                    # Remove from classification engine after successful download
-                    classification_engine.remove_result(download_id)
+                    # Remove from stored results after successful download
+                    if hasattr(app, 'stored_results') and download_id in app.stored_results:
+                        del app.stored_results[download_id]
                 except Exception as e:
                     app.logger.error(f"Cleanup error: {str(e)}")
             
@@ -340,39 +590,67 @@ def download_file(download_id: str):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint with resource statistics"""
-    classification_stats = classification_engine.get_stats()
-    resource_stats = resource_manager.cleanup_and_get_stats()
-    
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'classification_stats': classification_stats,
-        'resource_stats': {
-            'current_memory_mb': resource_stats['current_memory_mb'],
-            'registered_temp_files': resource_stats['file_stats']['registered_files'],
-            'processing_stats': resource_stats['processing_stats']
-        }
-    })
+    try:
+        resource_stats = resource_manager.cleanup_and_get_stats()
+        stored_results_count = len(getattr(app, 'stored_results', {}))
+        
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'stored_results_count': stored_results_count,
+            'resource_stats': {
+                'current_memory_mb': resource_stats['current_memory_mb'],
+                'registered_temp_files': resource_stats['file_stats']['registered_files'],
+                'processing_stats': resource_stats['processing_stats']
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'stored_results_count': len(getattr(app, 'stored_results', {})),
+            'note': 'Resource manager not available'
+        })
 
 
 @app.route('/api/cleanup', methods=['POST'])
 def cleanup_resources():
     """Manual cleanup endpoint for maintenance"""
     try:
-        # Clean up expired classification results
-        expired_count = classification_engine.cleanup_expired_results(max_age_hours=1)
+        # Clean up expired stored results (older than 1 hour)
+        expired_count = 0
+        if hasattr(app, 'stored_results'):
+            current_time = datetime.now()
+            expired_ids = []
+            
+            for result_id, result in app.stored_results.items():
+                if hasattr(result, 'created_at'):
+                    age_hours = (current_time - result.created_at).total_seconds() / 3600
+                    if age_hours > 1:
+                        expired_ids.append(result_id)
+            
+            for result_id in expired_ids:
+                del app.stored_results[result_id]
+                expired_count += 1
         
         # Clean up resource manager
-        resource_stats = resource_manager.cleanup_and_get_stats()
-        
-        return jsonify({
-            'success': True,
-            'cleanup_stats': {
+        try:
+            resource_stats = resource_manager.cleanup_and_get_stats()
+            cleanup_stats = {
                 'expired_results_cleaned': expired_count,
                 'files_cleaned': resource_stats['cleanup_stats']['cleaned_files'],
                 'memory_freed': resource_stats['memory_stats']['objects_freed'],
                 'current_memory_mb': resource_stats['current_memory_mb']
             }
+        except:
+            cleanup_stats = {
+                'expired_results_cleaned': expired_count,
+                'note': 'Resource manager cleanup not available'
+            }
+        
+        return jsonify({
+            'success': True,
+            'cleanup_stats': cleanup_stats
         })
         
     except Exception as e:

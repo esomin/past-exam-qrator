@@ -48,6 +48,7 @@
 
 .server-status.online {
   background: rgba(76, 175, 80, 0.2);
+  margin-bottom: 8px;
 }
 
 .server-status.offline {
@@ -247,7 +248,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transition: left 0.5s;
 }
 
@@ -476,11 +477,11 @@
   .app-main {
     padding: 1.5rem 1rem;
   }
-  
+
   .step-header {
     padding: 1.25rem 1.5rem;
   }
-  
+
   .step-content {
     padding: 1.5rem;
   }
@@ -490,61 +491,61 @@
   .app-title {
     font-size: 2rem;
   }
-  
+
   .app-description {
     font-size: 1rem;
   }
-  
+
   .app-main {
     padding: 1rem 0.75rem;
   }
-  
+
   .app-workflow {
     gap: 1.5rem;
   }
-  
+
   .workflow-step {
     border-radius: 8px;
   }
-  
+
   .step-header {
     padding: 1rem 1.25rem;
     flex-direction: column;
     text-align: center;
     gap: 0.75rem;
   }
-  
+
   .step-number {
     width: 28px;
     height: 28px;
     font-size: 0.9rem;
   }
-  
+
   .step-title {
     font-size: 1.1rem;
   }
-  
+
   .step-content {
     padding: 1.25rem;
   }
-  
+
   .process-btn {
     padding: 1rem 2rem;
     font-size: 1rem;
     min-width: 180px;
   }
-  
+
   .error-header {
     flex-direction: column;
     gap: 1rem;
     text-align: center;
   }
-  
+
   .footer-info {
     flex-direction: column;
     gap: 0.25rem;
   }
-  
+
   .separator {
     display: none;
   }
@@ -554,33 +555,33 @@
   .app-header {
     padding: 1.5rem 0.75rem;
   }
-  
+
   .app-title {
     font-size: 1.75rem;
   }
-  
+
   .app-description {
     font-size: 0.95rem;
   }
-  
+
   .app-main {
     padding: 0.75rem 0.5rem;
   }
-  
+
   .step-header {
     padding: 0.75rem 1rem;
   }
-  
+
   .step-content {
     padding: 1rem;
   }
-  
+
   .process-btn {
     padding: 0.875rem 1.5rem;
     font-size: 0.95rem;
     min-width: 160px;
   }
-  
+
   .server-status {
     padding: 0.375rem 0.75rem;
     font-size: 0.85rem;
@@ -592,16 +593,16 @@
   .app {
     background: white;
   }
-  
+
   .workflow-step {
     border: 2px solid #000;
   }
-  
+
   .step-header {
     background: #f0f0f0;
     border-bottom: 2px solid #000;
   }
-  
+
   .process-btn {
     background: #000;
     border: 2px solid #000;
@@ -610,20 +611,21 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
   .workflow-step,
   .process-btn,
   .dismiss-all-btn {
     transition: none;
   }
-  
+
   .workflow-step:hover {
     transform: none;
   }
-  
+
   .process-btn:hover:not(:disabled) {
     transform: none;
   }
-  
+
   .process-spinner,
   .spinner,
   .mini-spinner {
@@ -641,23 +643,25 @@
 
 /* Print styles */
 @media print {
+
   .app-header,
   .app-footer,
   .process-btn,
   .server-status {
     display: none;
   }
-  
+
   .app {
     background: white;
   }
-  
+
   .workflow-step {
     box-shadow: none;
     border: 1px solid #000;
     break-inside: avoid;
   }
 }
+
 /* Enhanced FileUpload Component Styles */
 .file-upload-container {
   width: 100%;
@@ -732,8 +736,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .file-info {
@@ -805,8 +814,15 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .upload-prompt h3 {
@@ -846,7 +862,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transition: left 0.5s;
 }
 
@@ -889,6 +905,7 @@
 .error-icon {
   font-size: 1.2rem;
 }
+
 /* Enhanced ProcessingOptions Component Styles */
 .processing-options-container {
   width: 100%;
@@ -1191,7 +1208,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transition: left 0.5s;
 }
 
@@ -1332,9 +1349,8 @@
   max-width: 400px;
   line-height: 1.5;
 }
-/
-* Enhanced Loading States */
-.validating-state {
+
+/ * Enhanced Loading States */ .validating-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1535,22 +1551,22 @@
     max-width: calc(100vw - 2rem);
     padding: 1.5rem;
   }
-  
+
   .progress-content {
     flex-direction: column;
     text-align: center;
     gap: 0.75rem;
   }
-  
+
   .progress-spinner {
     width: 28px;
     height: 28px;
   }
-  
+
   .progress-message {
     font-size: 1rem;
   }
-  
+
   .progress-sub-message {
     font-size: 0.85rem;
   }
@@ -1588,9 +1604,17 @@
 
 /* Pulse Animation for Loading Elements */
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .loading-pulse {
@@ -1629,9 +1653,16 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}/* 
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 
 Download Progress Bars */
 .download-progress {
   margin-top: 0.5rem;
@@ -1666,13 +1697,18 @@ Download Progress Bars */
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   animation: shimmer-button 2s infinite;
 }
 
 @keyframes shimmer-button {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 100%;
+  }
 }
 
 /* Responsive Enhancements for Loading States */
@@ -1682,26 +1718,28 @@ Download Progress Bars */
     text-align: center;
     gap: 0.5rem;
   }
-  
+
   .results-loading {
     padding: 1.5rem;
   }
-  
+
   .results-loading-spinner {
     width: 40px;
     height: 40px;
   }
-  
+
   .download-btn {
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
   }
-  
+
   .download-spinner {
     width: 14px;
     height: 14px;
   }
-}/* Additi
+}
+
+/* Additi
 onal Accessibility Enhancements */
 .processing-indicator {
   margin-left: 0.5rem;
@@ -1773,14 +1811,26 @@ onal Accessibility Enhancements */
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 /* Skeleton Loading Animation */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* Enhanced Button Hover Effects */
@@ -1798,25 +1848,25 @@ onal Accessibility Enhancements */
     background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
     color: #f9fafb;
   }
-  
+
   .workflow-step {
     background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
     border-color: #4b5563;
   }
-  
+
   .step-header {
     background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
     border-bottom-color: #6b7280;
   }
-  
+
   .step-title {
     color: #f9fafb;
   }
-  
+
   .app-title {
     color: #f9fafb;
   }
-  
+
   .app-description {
     color: #d1d5db;
   }
@@ -1846,6 +1896,7 @@ onal Accessibility Enhancements */
 
 /* Ensure buttons are properly sized for touch */
 @media (max-width: 768px) {
+
   .download-btn,
   .process-btn,
   .change-file-btn,
@@ -1853,5 +1904,82 @@ onal Accessibility Enhancements */
   .dismiss-btn {
     min-height: 44px;
     min-width: 44px;
+  }
+}/* Proce
+ssing Statistics Styles */
+.processing-statistics {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.stats-title {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  color: #ffffff;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stat-item.highlight {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.4);
+}
+
+.stat-label {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-value {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #ffffff;
+}
+
+.stat-item.highlight .stat-value {
+  color: #ffc107;
+}
+
+/* Responsive adjustments for statistics */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .processing-statistics {
+    padding: 1rem;
+  }
+  
+  .stats-title {
+    font-size: 1.1rem;
+  }
+  
+  .stat-item {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .stat-value {
+    font-size: 1rem;
   }
 }
