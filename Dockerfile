@@ -1,44 +1,47 @@
-# Multi-stage build for React + Python Flask application
-FROM node:18-alpine AS frontend-builder
+# =========================================================
+# Stage 1: Frontend Build (React + Vite + TypeScript)
+# =========================================================
+FROM node:20-bookworm AS frontend-builder
 
-# Set working directory for frontend
 WORKDIR /app/frontend
 
-# Copy package files
+# Copy dependency files first for caching
 COPY package*.json ./
 COPY tsconfig*.json ./
-COPY vite.config.ts ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
-COPY eslint.config.js ./
+COPY vite.config.* ./
+COPY tailwind.config.* ./
+COPY postcss.config.* ./
+COPY eslint.config.* ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (include devDependencies)
+RUN npm ci
 
-# Copy source code
+# Copy application source
 COPY src/ ./src/
 COPY public/ ./public/
 COPY index.html ./
 
-# Build frontend
+# Build the production frontend
 RUN npm run build
 
-# Python backend stage
+# =========================================================
+# Stage 2: Python Backend (Flask)
+# =========================================================
 FROM python:3.11-slim AS backend
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install minimal system dependencies (for pip builds, curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements and install dependencies
+# Copy Python dependencies
 COPY python/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy Python application
+# Copy backend application code
 COPY python/ ./
 
 # Copy built frontend from previous stage
@@ -52,12 +55,12 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 
-# Expose port
+# Expose Flask port
 EXPOSE 5001
 
-# Health check
+# Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5001/api/health || exit 1
+  CMD curl -f http://localhost:5001/api/health || exit 1
 
-# Run the application
+# Start Flask app
 CMD ["python", "app.py"]
