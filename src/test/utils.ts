@@ -18,7 +18,7 @@ export const createMockProcessingOptions = (): ProcessingOption[] => [
   },
   {
     id: 'institution',
-    label: 'Institution Classification', 
+    label: 'Institution Classification',
     description: 'Group by institution extracted from solve field'
   },
   {
@@ -42,7 +42,7 @@ export const createMockProcessingResults = (): ProcessingResult[] => [
     }
   },
   {
-    id: 'result-2', 
+    id: 'result-2',
     type: 'institution',
     filename: 'institution_classification.json',
     data: {
@@ -59,10 +59,10 @@ export const createMockDragEvent = (files: File[]): DragEvent => {
     items: files.map(file => ({ kind: 'file', type: file.type, getAsFile: () => file })) as any,
     types: ['Files']
   }
-  
+
   return {
-    preventDefault: () => {},
-    stopPropagation: () => {},
+    preventDefault: () => { },
+    stopPropagation: () => { },
     dataTransfer: mockDataTransfer
   } as any as DragEvent
 }
