@@ -925,6 +925,20 @@
   line-height: 1.5;
 }
 
+/* Options Sections */
+.options-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  margin: 0 0 1rem 0;
+  color: #374151;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
 .options-list {
   display: grid;
   gap: 1rem;

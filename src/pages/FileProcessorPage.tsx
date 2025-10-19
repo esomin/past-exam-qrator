@@ -4,8 +4,9 @@ import ProcessingOptions from '../components/ProcessingOptions'
 import ResultsDisplay from '../components/ResultsDisplay'
 import ErrorDisplay from '../components/ErrorDisplay'
 import ProgressIndicator from '../components/ProgressIndicator'
-import { processFile, downloadFile, getServerStatus } from '../services/api'
+import { processFile, downloadFile, fetchJsonData, getServerStatus } from '../services/api'
 import { useErrorHandler } from '../utils/errorHandler'
+import { convertJsonToMarkdown } from '../utils/convertJsonToMarkdown'
 import type { ProcessingOption, ProcessingResult, ErrorState } from '../types'
 
 function FileProcessorPage() {
@@ -27,7 +28,7 @@ function FileProcessorPage() {
     duplicate_count: number
     removed_duplicate_answers: number
   } | null>(null)
-  
+
   const { handleError } = useErrorHandler()
 
   const processingOptions: ProcessingOption[] = [
@@ -52,22 +53,22 @@ function FileProcessorPage() {
     const checkServer = async () => {
       const status = await getServerStatus()
       setServerAvailable(status.available)
-      
+
       if (!status.available) {
         setServerError(status.error || 'Server is not available')
       } else {
         setServerError(null)
       }
     }
-    
+
     checkServer()
-    
+
     const interval = setInterval(() => {
       if (!serverAvailable) {
         checkServer()
       }
     }, 30000)
-    
+
     return () => clearInterval(interval)
   }, [serverAvailable])
 
@@ -102,10 +103,18 @@ function FileProcessorPage() {
     setProcessingMessage('Preparing file for processing...')
 
     try {
+      // Separate classification options from format options
+      const classificationOptions = selectedOptions.filter(opt =>
+        ['category', 'institution', 'year'].includes(opt)
+      )
+      const formatOptions = selectedOptions.filter(opt =>
+        ['json', 'markdown'].includes(opt)
+      )
+
       const progressSteps = [
         { progress: 10, message: 'Uploading file to server...' },
         { progress: 30, message: 'Parsing JSON data...' },
-        { progress: 50, message: `Processing ${selectedOptions.length} classification${selectedOptions.length > 1 ? 's' : ''}...` },
+        { progress: 50, message: `Processing ${classificationOptions.length} classification${classificationOptions.length > 1 ? 's' : ''}...` },
         { progress: 80, message: 'Generating output files...' },
         { progress: 95, message: 'Finalizing results...' }
       ]
@@ -116,21 +125,42 @@ function FileProcessorPage() {
         await new Promise(resolve => setTimeout(resolve, 500))
       }
 
-      const response = await processFile(uploadedFile, selectedOptions)
-      
+      // Process with classification options only
+      const response = await processFile(uploadedFile, classificationOptions)
+
       setProcessingProgress(100)
       setProcessingMessage('Processing complete!')
-      
+
       if (response.success && response.results) {
-        const processedResults: ProcessingResult[] = response.results.map(result => ({
-          id: result.download_id,
-          type: result.type,
-          filename: result.filename,
-          data: null
-        }))
-        
+        let processedResults: ProcessingResult[] = []
+
+        // Handle JSON format results
+        if (formatOptions.includes('json')) {
+          const jsonResults = response.results.map(result => ({
+            id: result.download_id,
+            type: result.type,
+            filename: result.filename,
+            data: null
+          }))
+          processedResults.push(...jsonResults)
+        }
+
+        // Handle Markdown format results
+        if (formatOptions.includes('markdown')) {
+          // We need to get the processed data from the backend to convert to markdown
+          // For now, create placeholder markdown results that will be converted on download
+          const markdownResults = response.results.map(result => ({
+            id: `${result.download_id}_md`,
+            type: `${result.type}_markdown`,
+            filename: result.filename.replace('.json', '.md'),
+            data: null, // Will be converted on download
+            sourceId: result.download_id // Store reference to original JSON result
+          }))
+          processedResults.push(...markdownResults)
+        }
+
         setResults(processedResults)
-        
+
         // 통계 정보 설정
         if (response.statistics) {
           setStatistics(response.statistics)
@@ -176,7 +206,61 @@ function FileProcessorPage() {
     }
 
     try {
-      await downloadFile(resultId, result.filename)
+      // Handle markdown files - fetch JSON data and convert
+      if (result.filename.endsWith('.md') && (result as any).sourceId) {
+        const sourceId = (result as any).sourceId
+        console.log('Fetching JSON data for markdown conversion, sourceId:', sourceId)
+
+        try {
+          // Fetch the JSON data from the server using the API service
+          const jsonData = await fetchJsonData(sourceId)
+          console.log('Successfully fetched JSON data, converting to markdown...')
+
+          // Determine exclude columns based on result type
+          let excludeColumns: string[] = []
+          if (result.type.includes('year')) {
+            excludeColumns = ['year'] // 연도별 분류에서는 year 컬럼 제외
+          } else if (result.type.includes('institution')) {
+            excludeColumns = ['institution'] // 기관별 분류에서는 institution 컬럼 제외
+          }
+
+          // Convert to markdown with appropriate column exclusions
+          const markdownContent = convertJsonToMarkdown(jsonData, { excludeColumns })
+          console.log('Successfully converted to markdown, downloading...')
+
+          // Download as markdown file
+          const blob = new Blob([markdownContent], { type: 'text/markdown' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = result.filename
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+          
+          console.log('Markdown download completed successfully')
+        } catch (fetchError) {
+          console.error('Failed to fetch JSON data for markdown conversion:', fetchError)
+          throw new Error(`Failed to fetch source data: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`)
+        }
+      } else if (result.data && result.filename.endsWith('.md')) {
+        // Handle markdown files with local data
+        console.log('Downloading markdown file with local data')
+        const blob = new Blob([result.data], { type: 'text/markdown' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = result.filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } else {
+        // Handle JSON files from server
+        console.log('Downloading JSON file from server, resultId:', resultId)
+        await downloadFile(resultId, result.filename)
+      }
     } catch (err) {
       const errorState = handleError(
         {
@@ -243,7 +327,7 @@ function FileProcessorPage() {
             {errors.length > 1 && (
               <div className="error-header">
                 <h2 className="error-title">Multiple Errors ({errors.length})</h2>
-                <button 
+                <button
                   className="dismiss-all-btn"
                   onClick={dismissAllErrors}
                   aria-label={`Dismiss all ${errors.length} errors`}
@@ -272,7 +356,7 @@ function FileProcessorPage() {
             <h2 id="upload-heading" className="step-title">Upload File</h2>
           </div>
           <div className="step-content">
-            <FileUpload 
+            <FileUpload
               onFileUpload={handleFileUpload}
               isUploading={isUploading}
             />

@@ -12,6 +12,7 @@ export interface ProcessingResult {
   filename: string;
   data: any;
   downloadUrl?: string;
+  sourceId?: string; // For markdown files that reference original JSON data
 }
 
 export interface FileUploadProps {

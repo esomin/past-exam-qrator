@@ -289,6 +289,60 @@ export const checkServerHealth = async (): Promise<boolean> => {
 };
 
 /**
+ * Fetch JSON data for a processed file by its download ID (for markdown conversion)
+ */
+export const fetchJsonData = async (downloadId: string): Promise<any> => {
+  try {
+    // Validate input
+    if (!downloadId) {
+      throw new Error('Download ID is required');
+    }
+
+    console.log(`Fetching JSON data for download ID: ${downloadId}`);
+    console.log(`Request URL: ${API_BASE_URL}/data/${downloadId}`);
+
+    // Use retry mechanism for data fetch requests
+    const response = await retryRequest(
+      () => api.get(`/data/${downloadId}`, {
+        responseType: 'json',
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Accept': 'application/json',
+        }
+      }),
+      2, // Fewer retries for data fetch
+      1000
+    );
+
+    console.log(`Successfully fetched data, status: ${response.status}`);
+    console.log(`Response headers:`, response.headers);
+
+    // Validate response
+    if (!response.data) {
+      throw new Error('No data received from server');
+    }
+
+    console.log(`Data type: ${typeof response.data}, size: ${JSON.stringify(response.data).length} chars`);
+    return response.data;
+  } catch (error) {
+    console.error('Error in fetchJsonData:', error);
+    
+    const apiError = handleApiError(error as AxiosError);
+    
+    // Provide more specific error messages for data fetch
+    let errorMessage = apiError.message;
+    if (apiError.code === 'NETWORK_ERROR') {
+      errorMessage = 'Failed to fetch data due to network issues. Please check your connection and try again.';
+    } else if (apiError.code === 'FILE_NOT_FOUND') {
+      errorMessage = 'The requested data is no longer available. It may have expired.';
+    }
+    
+    console.error(`Final error message: ${errorMessage}`);
+    throw new Error(errorMessage);
+  }
+};
+
+/**
  * Enhanced server health check with detailed status
  */
 export const getServerStatus = async (): Promise<{

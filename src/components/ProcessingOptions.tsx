@@ -7,76 +7,140 @@ export default function ProcessingOptions({
   disabled,
   isProcessing = false
 }: ProcessingOptionsProps) {
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [selectedClassifications, setSelectedClassifications] = useState<string[]>([]);
+  const [selectedFormats, setSelectedFormats] = useState<string[]>(['json']); // Default to JSON
 
-  const handleOptionChange = (optionId: string, checked: boolean) => {
-    let newSelectedOptions: string[];
+  const handleClassificationChange = (optionId: string, checked: boolean) => {
+    let newSelectedClassifications: string[];
     
     if (checked) {
-      newSelectedOptions = [...selectedOptions, optionId];
+      newSelectedClassifications = [...selectedClassifications, optionId];
     } else {
-      newSelectedOptions = selectedOptions.filter(id => id !== optionId);
+      newSelectedClassifications = selectedClassifications.filter(id => id !== optionId);
     }
     
-    setSelectedOptions(newSelectedOptions);
-    onOptionsChange(newSelectedOptions);
+    setSelectedClassifications(newSelectedClassifications);
+    updateOptions(newSelectedClassifications, selectedFormats);
   };
 
-  const hasSelectedOptions = selectedOptions.length > 0;
+  const handleFormatChange = (formatId: string, checked: boolean) => {
+    let newSelectedFormats: string[];
+    
+    if (checked) {
+      newSelectedFormats = [...selectedFormats, formatId];
+    } else {
+      newSelectedFormats = selectedFormats.filter(id => id !== formatId);
+    }
+    
+    // Ensure at least one format is selected
+    if (newSelectedFormats.length === 0) {
+      newSelectedFormats = ['json'];
+    }
+    
+    setSelectedFormats(newSelectedFormats);
+    updateOptions(selectedClassifications, newSelectedFormats);
+  };
+
+  const updateOptions = (classifications: string[], formats: string[]) => {
+    // Combine classifications and formats
+    const allOptions = [...classifications, ...formats];
+    onOptionsChange(allOptions);
+  };
+
+  const hasSelectedClassifications = selectedClassifications.length > 0;
+  const hasSelectedFormats = selectedFormats.length > 0;
 
   return (
     <div className="processing-options-container">
       <h3>Processing Options</h3>
       <p className="options-description">
-        Select one or more classification types to process your data:
+        Select classification types and output formats for your data:
       </p>
       
-      <div className="options-list">
-        {options.map((option) => (
-          <label 
-            key={option.id} 
-            className={`option-item ${disabled || isProcessing ? 'disabled' : ''}`}
-          >
+      {/* Classification Options */}
+      <div className="options-section">
+        <h4 className="section-title">분류 옵션 (Classification Options)</h4>
+        <div className="options-list">
+          {options.map((option) => (
+            <label 
+              key={option.id} 
+              className={`option-item ${disabled || isProcessing ? 'disabled' : ''}`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedClassifications.includes(option.id)}
+                onChange={(e) => handleClassificationChange(option.id, e.target.checked)}
+                disabled={disabled || isProcessing}
+                className="option-checkbox"
+              />
+              <div className="option-content">
+                <span className="option-label">
+                  {option.label}
+                  {isProcessing && selectedClassifications.includes(option.id) && (
+                    <span className="processing-indicator">
+                      <div className="mini-spinner"></div>
+                    </span>
+                  )}
+                </span>
+                <span className="option-description">{option.description}</span>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Output Format Options */}
+      <div className="options-section">
+        <h4 className="section-title">출력 형식 (Output Format)</h4>
+        <div className="options-list">
+          <label className={`option-item ${disabled || isProcessing ? 'disabled' : ''}`}>
             <input
               type="checkbox"
-              checked={selectedOptions.includes(option.id)}
-              onChange={(e) => handleOptionChange(option.id, e.target.checked)}
+              checked={selectedFormats.includes('json')}
+              onChange={(e) => handleFormatChange('json', e.target.checked)}
               disabled={disabled || isProcessing}
               className="option-checkbox"
             />
             <div className="option-content">
-              <span className="option-label">
-                {option.label}
-                {isProcessing && selectedOptions.includes(option.id) && (
-                  <span className="processing-indicator">
-                    <div className="mini-spinner"></div>
-                  </span>
-                )}
-              </span>
-              <span className="option-description">{option.description}</span>
+              <span className="option-label">JSON</span>
+              <span className="option-description">Standard JSON format for data processing</span>
             </div>
           </label>
-        ))}
+          
+          <label className={`option-item ${disabled || isProcessing ? 'disabled' : ''}`}>
+            <input
+              type="checkbox"
+              checked={selectedFormats.includes('markdown')}
+              onChange={(e) => handleFormatChange('markdown', e.target.checked)}
+              disabled={disabled || isProcessing}
+              className="option-checkbox"
+            />
+            <div className="option-content">
+              <span className="option-label">Markdown</span>
+              <span className="option-description">Table format for easy viewing and documentation</span>
+            </div>
+          </label>
+        </div>
       </div>
       
-      {!disabled && !isProcessing && !hasSelectedOptions && (
+      {!disabled && !isProcessing && !hasSelectedClassifications && (
         <div className="validation-message">
           <span className="warning-icon">⚠️</span>
-          Please select at least one processing option to continue.
+          Please select at least one classification option to continue.
         </div>
       )}
       
-      {!disabled && hasSelectedOptions && !isProcessing && (
+      {!disabled && hasSelectedClassifications && hasSelectedFormats && !isProcessing && (
         <div className="selection-summary">
           <span className="success-icon">✅</span>
-          {selectedOptions.length} option{selectedOptions.length > 1 ? 's' : ''} selected
+          {selectedClassifications.length} classification{selectedClassifications.length > 1 ? 's' : ''} and {selectedFormats.length} format{selectedFormats.length > 1 ? 's' : ''} selected
         </div>
       )}
 
-      {isProcessing && hasSelectedOptions && (
+      {isProcessing && hasSelectedClassifications && (
         <div className="processing-message">
           <div className="processing-spinner"></div>
-          <span>Processing {selectedOptions.length} classification{selectedOptions.length > 1 ? 's' : ''}...</span>
+          <span>Processing {selectedClassifications.length} classification{selectedClassifications.length > 1 ? 's' : ''} in {selectedFormats.length} format{selectedFormats.length > 1 ? 's' : ''}...</span>
         </div>
       )}
     </div>

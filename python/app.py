@@ -94,7 +94,6 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
     for question in data_with_category2:
         # question 레벨 속성 추출
         question_data = {
-            "answerRate": question.get("answerRate"),
             "title": question.get("title"),
             "titleType": question.get("titleType"),
             "solve": question.get("solve"),
@@ -121,7 +120,7 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
             # answerSet 항목 속성 추출
             answer_data = {
                 "id": answer_id,
-                "answer_title": answer.get("title"),
+                "title": answer.get("title"),
                 "commentary": answer.get("commentary"),
                 "answerKind": answer.get("answerKind")
             }
@@ -132,25 +131,23 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
                 answer_data["answerKind"]
             )
             
-            # 최종 플래튼 항목 생성 (solve 제거, institution/year 추가)
+            # 최종 플래튼 항목 생성 - 개선된 컬럼 순서
             flattened_item = {
-                # question 속성들
-                "answerRate": question_data["answerRate"],
-                "question_title": question_data["title"],
-                "titleType": question_data["titleType"],
-                "categoryTitle": question_data["categoryTitle"],
-                "category2": question_data["category2"],  # category2 추가
+                # Primary Information First
+                "id": answer_data["id"],
+                "question": question_data["title"],
+                "answer": answer_data["title"],
+                
+                # Classification & Context
+                "category1": question_data["categoryTitle"],
+                "category2": question_data["category2"],
                 "institution": institution,
                 "year": year,
                 
-                # answer 속성들
-                "id": answer_data["id"],
-                "answer_title": answer_data["answer_title"],
-                "commentary": answer_data["commentary"],
+                # Answer Analysis
                 "answerKind": answer_data["answerKind"],
-                
-                # 계산된 속성
-                "isCorrect": is_correct
+                "isCorrect": is_correct,
+                "commentary": answer_data["commentary"]
             }
             
             flattened_data.append(flattened_item)
@@ -158,8 +155,8 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
             # 문제 제목 추가 (중복 문제 계산용)
             seen_questions.add(question_data["title"])
     
-    # categoryTitle로 정렬
-    flattened_data.sort(key=lambda x: (x.get('categoryTitle', ''), x.get('id', 0)))
+    # category1로 정렬
+    flattened_data.sort(key=lambda x: (x.get('category1', ''), x.get('id', 0)))
     
     # 결과 문제 수 계산 (고유한 question_title 개수)
     unique_questions = len(seen_questions)
@@ -190,7 +187,7 @@ def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[s
     # 각 기관별로 category1, category2, ID순 정렬
     for institution in institution_groups:
         institution_groups[institution].sort(key=lambda x: (
-            x.get('categoryTitle', ''),  # 1차 정렬: category1
+            x.get('category1', ''),  # 1차 정렬: category1
             x.get('category2', ''),      # 2차 정렬: category2
             x.get('id', 0)               # 3차 정렬: id
         ))
@@ -209,7 +206,7 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
     # 각 연도별로 category1, category2, ID순 정렬
     for year in year_groups:
         year_groups[year].sort(key=lambda x: (
-            x.get('categoryTitle', ''),  # 1차 정렬: category1
+            x.get('category1', ''),  # 1차 정렬: category1
             x.get('category2', ''),      # 2차 정렬: category2
             x.get('id', 0)               # 3차 정렬: id
         ))
@@ -308,7 +305,7 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
             flattened_data = resource_manager.process_large_dataset(validated_data, convert_chunk)
             # 청크 처리 시 통계는 별도 계산
             original_answers = sum(len(q.get("answerSet", [])) for q in validated_data)
-            unique_questions = len(set(item.get('question_title', '') for item in flattened_data))
+            unique_questions = len(set(item.get('question', '') for item in flattened_data))
             removed_duplicate_answers = original_answers - len(flattened_data)
             removed_duplicate_questions = len(validated_data) - unique_questions
             stats = {
@@ -551,6 +548,46 @@ def process_file():
                 'code': 'INTERNAL_ERROR',
                 'message': 'An unexpected error occurred',
                 'details': 'Please try again or contact support'
+            }
+        }), 500
+
+
+@app.route('/api/data/<download_id>', methods=['GET'])
+def get_data(download_id: str):
+    """
+    Get processed data by ID (for markdown conversion)
+    
+    Args:
+        download_id: UUID of the processed file
+        
+    Returns:
+        JSON data or error response
+    """
+    try:
+        # Check if download ID exists in stored results
+        if not hasattr(app, 'stored_results') or download_id not in app.stored_results:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'FILE_NOT_FOUND',
+                    'message': 'Download ID not found',
+                    'details': 'The requested file may have expired or does not exist'
+                }
+            }), 404
+        
+        result = app.stored_results[download_id]
+        
+        # Return the data directly as JSON
+        return jsonify(result.data)
+            
+    except Exception as e:
+        app.logger.error(f"Data fetch error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'DATA_FETCH_ERROR',
+                'message': 'Failed to fetch data',
+                'details': str(e)
             }
         }), 500
 
