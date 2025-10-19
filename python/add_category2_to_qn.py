@@ -34,9 +34,7 @@ class Category2Adder:
     def clean_prefix(self, text: str) -> str:
         """문제 번호 및 불필요한 접두사 제거"""
         text = self.normalize_text(text)
-        # 1. [숫자] 문제번호 제거
-        text = re.sub(r"^\[\d+\]\s*", "", text)
-        # 2. "다음", "다음 중" 제거 (맨 앞 또는 카테고리 뒤)
+        # "다음", "다음 중" 제거 (맨 앞 또는 카테고리 뒤)
         text = re.sub(r"(^|\]\s*)다음\s*중\s*", r"\1", text)
         text = re.sub(r"(^|\]\s*)다음\s*", r"\1", text)
         return text.strip()
@@ -60,14 +58,11 @@ class Category2Adder:
     
     def add_category2_to_questions(self, questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """질문 데이터에 category2 키워드를 추가"""
-        # ETC 타입 필터링
-        filtered_questions = [q for q in questions if q.get('titleType') != "ETC"]
-        
         # 각 질문에 category2 추가
-        for question in filtered_questions:
+        for question in questions:
             question['category2'] = self.extract_keyword(question['title'])
         
-        return filtered_questions
+        return questions
     
     def create_qna_pairs(self, questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Q&A 쌍 데이터를 생성"""

@@ -77,23 +77,29 @@ def determine_is_correct(title_type: str, answer_kind: str) -> Optional[bool]:
 
 def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
     """원본 데이터를 플래튼하여 필요한 속성만 추출하고 통계 정보 반환"""
+    from add_category2_to_qn import add_category2_to_data
+    
+    # category2 추가
+    data_with_category2 = add_category2_to_data(input_data)
+    
     flattened_data = []
     seen_ids = set()  # ID 중복 체크용
     seen_questions = set()  # 문제 중복 체크용
     
     # 통계 정보
-    original_questions = len(input_data)
+    original_questions = len(data_with_category2)
     original_answers = 0
     removed_duplicate_answers = 0  # 제거된 중복 선택지 수
     
-    for question in input_data:
+    for question in data_with_category2:
         # question 레벨 속성 추출
         question_data = {
             "answerRate": question.get("answerRate"),
             "title": question.get("title"),
             "titleType": question.get("titleType"),
             "solve": question.get("solve"),
-            "categoryTitle": question.get("categoryTitle")
+            "categoryTitle": question.get("categoryTitle"),
+            "category2": question.get("category2")  # category2 추가
         }
         
         # solve에서 기관과 연도 추출
@@ -133,6 +139,7 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
                 "question_title": question_data["title"],
                 "titleType": question_data["titleType"],
                 "categoryTitle": question_data["categoryTitle"],
+                "category2": question_data["category2"],  # category2 추가
                 "institution": institution,
                 "year": year,
                 
@@ -180,12 +187,12 @@ def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[s
         institution = item.get('institution', 'Unknown')
         institution_groups[institution].append(item)
     
-    # 각 기관별로 categoryTitle, 연도순, ID순 정렬
+    # 각 기관별로 category1, category2, ID순 정렬
     for institution in institution_groups:
         institution_groups[institution].sort(key=lambda x: (
-            x.get('categoryTitle', ''), 
-            x.get('year', 'Unknown'), 
-            x.get('id', 0)
+            x.get('categoryTitle', ''),  # 1차 정렬: category1
+            x.get('category2', ''),      # 2차 정렬: category2
+            x.get('id', 0)               # 3차 정렬: id
         ))
     
     return dict(institution_groups)
@@ -199,11 +206,12 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
         year = item.get('year', 'Unknown')
         year_groups[year].append(item)
     
-    # 각 연도별로 categoryTitle, ID순 정렬
+    # 각 연도별로 category1, category2, ID순 정렬
     for year in year_groups:
         year_groups[year].sort(key=lambda x: (
-            x.get('categoryTitle', ''), 
-            x.get('id', 0)
+            x.get('categoryTitle', ''),  # 1차 정렬: category1
+            x.get('category2', ''),      # 2차 정렬: category2
+            x.get('id', 0)               # 3차 정렬: id
         ))
     
     # 연도순으로 정렬된 결과 생성
@@ -347,12 +355,15 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
             if option in results_data:
                 # 각 분류 결과를 저장하고 다운로드 ID 생성
                 download_id = str(uuid.uuid4())
-                # 연도별 분류는 특별한 파일명 사용
-                if option == 'year':
-                    filename_suffix = "연도별분류"
+                
+                # 파일명 생성 - 한국어 접미사 사용
+                base_filename = os.path.splitext(filename)[0]
+                if option == 'institution':
+                    result_filename = f"{base_filename}_기관별.json"
+                elif option == 'year':
+                    result_filename = f"{base_filename}_연도별.json"
                 else:
-                    filename_suffix = option
-                filename = f"{os.path.splitext(filename)[0]}_{filename_suffix}.json"
+                    result_filename = f"{base_filename}_{option}.json"
                 
                 # 분류 엔진에 결과 저장 (임시)
                 from dataclasses import dataclass
@@ -376,7 +387,7 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
                 result = ClassificationResult(
                     id=download_id,
                     type=option,
-                    filename=filename,
+                    filename=result_filename,
                     data=results_data[option],
                     created_at=datetime.now()
                 )
@@ -394,7 +405,8 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
                 _, similar_groups = similarity_processor.process_similarity_from_data(answers)
                 
                 download_id = str(uuid.uuid4())
-                category_filename = f"{os.path.splitext(filename)[0]}_category.json"
+                base_filename = os.path.splitext(filename)[0]
+                category_filename = f"{base_filename}_category.json"
                 
                 result = ClassificationResult(
                     id=download_id,

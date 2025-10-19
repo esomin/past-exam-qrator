@@ -94,6 +94,15 @@ class ClassificationEngine:
         for item in data:
             institution = item.get('institution', 'Unknown')
             result[institution].append(item)
+        
+        # 각 기관별로 category1, category2, ID순 정렬
+        for institution in result:
+            result[institution].sort(key=lambda x: (
+                x.get('categoryTitle', ''),  # 1차 정렬: category1
+                x.get('category2', ''),      # 2차 정렬: category2
+                x.get('id', 0)               # 3차 정렬: id
+            ))
+        
         return dict(result)
     
     def classify_by_year(self, data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
@@ -102,7 +111,20 @@ class ClassificationEngine:
         for item in data:
             year = item.get('year', 'Unknown')
             result[year].append(item)
-        return dict(result)
+        
+        # 각 연도별로 category1, category2, ID순 정렬
+        for year in result:
+            result[year].sort(key=lambda x: (
+                x.get('categoryTitle', ''),  # 1차 정렬: category1
+                x.get('category2', ''),      # 2차 정렬: category2
+                x.get('id', 0)               # 3차 정렬: id
+            ))
+        
+        # 연도순으로 정렬된 결과 생성
+        sorted_years = sorted(result.keys(), key=lambda x: x if x != 'Unknown' else '0000')
+        sorted_result = {year: result[year] for year in sorted_years}
+        
+        return sorted_result
     
     def process_multiple_classifications(self, 
                                       data: List[Dict[str, Any]], 
@@ -137,7 +159,7 @@ class ClassificationEngine:
             result = ClassificationResult(
                 classification_type='institution',
                 data=institution_data,
-                filename='institution_classification.json'
+                filename='기관별_classification.json'
             )
             self.temp_results[result.id] = result
             results.append(result)
@@ -147,7 +169,7 @@ class ClassificationEngine:
             result = ClassificationResult(
                 classification_type='year',
                 data=year_data,
-                filename='year_classification.json'
+                filename='연도별_classification.json'
             )
             self.temp_results[result.id] = result
             results.append(result)
