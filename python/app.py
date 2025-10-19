@@ -95,6 +95,7 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
         # question 레벨 속성 추출
         question_data = {
             "title": question.get("title"),
+            "text": question.get("text"),
             "titleType": question.get("titleType"),
             "solve": question.get("solve"),
             "categoryTitle": question.get("categoryTitle"),
@@ -132,10 +133,15 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
             )
             
             # 최종 플래튼 항목 생성 - 개선된 컬럼 순서
+            # question 필드에 title과 text 합치기
+            question_title = question_data["title"] or ""
+            question_text = question_data["text"] or ""
+            combined_question = f"{question_title} {question_text}".strip()
+            
             flattened_item = {
                 # Primary Information First
                 "id": answer_data["id"],
-                "question": question_data["title"],
+                "question": combined_question,
                 "answer": answer_data["title"],
                 
                 # Classification & Context

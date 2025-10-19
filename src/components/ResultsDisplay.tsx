@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import {
+  FiFolder,
+  FiHome,
+  FiCalendar,
+  FiFile,
+  FiDownload,
+  FiLoader,
+  FiX,
+  FiBarChart
+} from 'react-icons/fi';
 import type { ResultsDisplayProps } from '../types';
 
 export default function ResultsDisplay({ results, onDownload }: ResultsDisplayProps) {
@@ -33,7 +43,7 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
         newProgress.set(resultId, 100);
         return newProgress;
       });
-      
+
       // Clear progress after a short delay
       setTimeout(() => {
         setDownloadProgress(prev => {
@@ -61,13 +71,13 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
   const getFileTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
       case 'category':
-        return '📂';
+        return <FiFolder className="result-type-icon" />;
       case 'institution':
-        return '🏛️';
+        return <FiHome className="result-type-icon" />;
       case 'year':
-        return '📅';
+        return <FiCalendar className="result-type-icon" />;
       default:
-        return '📄';
+        return <FiFile className="result-type-icon" />;
     }
   };
 
@@ -81,7 +91,7 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
 
   return (
     <div className="results-display-container">
-      <h3>Processing Results</h3>
+      <h3 className="results-title">Processing Results</h3>
       <p className="results-description">
         Your file has been processed successfully. Download the results below:
       </p>
@@ -99,7 +109,7 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
                   {getFileTypeIcon(result.type)}
                 </div>
                 <div className="result-details">
-                  <h4 className="result-title">
+                  <h4 className="result-item-title">
                     {formatFileType(result.type)}
                   </h4>
                   <p className="result-filename">{result.filename}</p>
@@ -119,12 +129,12 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
                 >
                   {isDownloading ? (
                     <>
-                      <div className="download-spinner"></div>
+                      <FiLoader className="download-spinner" />
                       {progress !== undefined ? `${progress}%` : 'Downloading...'}
                     </>
                   ) : (
                     <>
-                      <span className="download-icon">⬇️</span>
+                      <FiDownload className="download-icon" />
                       Download
                     </>
                   )}
@@ -134,8 +144,8 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
               {isDownloading && progress !== undefined && (
                 <div className="download-progress">
                   <div className="download-progress-bar">
-                    <div 
-                      className="download-progress-fill" 
+                    <div
+                      className="download-progress-fill"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -144,8 +154,8 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
 
               {error && (
                 <div className="result-error">
-                  <span className="error-icon">❌</span>
-                  {error}
+                  <FiX className="error-icon" />
+                  <span className="error-message">{error}</span>
                   <button
                     className="retry-btn"
                     onClick={() => handleDownload(result.id)}
@@ -160,8 +170,10 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
       </div>
 
       <div className="results-summary">
-        <span className="summary-icon">📊</span>
-        {results.length} result{results.length > 1 ? 's' : ''} ready for download
+        <FiBarChart className="summary-icon" />
+        <span className="summary-text">
+          {results.length} result{results.length > 1 ? 's' : ''} ready for download
+        </span>
       </div>
     </div>
   );

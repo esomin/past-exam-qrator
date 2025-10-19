@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiAlertTriangle, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import type { ProcessingOptionsProps } from '../types';
 
 export default function ProcessingOptions({ 
@@ -78,7 +79,7 @@ export default function ProcessingOptions({
                   {option.label}
                   {isProcessing && selectedClassifications.includes(option.id) && (
                     <span className="processing-indicator">
-                      <div className="mini-spinner"></div>
+                      <FiLoader className="mini-spinner" />
                     </span>
                   )}
                 </span>
@@ -125,21 +126,21 @@ export default function ProcessingOptions({
       
       {!disabled && !isProcessing && !hasSelectedClassifications && (
         <div className="validation-message">
-          <span className="warning-icon">⚠️</span>
+          <FiAlertTriangle className="warning-icon" />
           Please select at least one classification option to continue.
         </div>
       )}
       
       {!disabled && hasSelectedClassifications && hasSelectedFormats && !isProcessing && (
         <div className="selection-summary">
-          <span className="success-icon">✅</span>
+          <FiCheckCircle className="success-icon" />
           {selectedClassifications.length} classification{selectedClassifications.length > 1 ? 's' : ''} and {selectedFormats.length} format{selectedFormats.length > 1 ? 's' : ''} selected
         </div>
       )}
 
       {isProcessing && hasSelectedClassifications && (
         <div className="processing-message">
-          <div className="processing-spinner"></div>
+          <FiLoader className="processing-spinner" />
           <span>Processing {selectedClassifications.length} classification{selectedClassifications.length > 1 ? 's' : ''} in {selectedFormats.length} format{selectedFormats.length > 1 ? 's' : ''}...</span>
         </div>
       )}
