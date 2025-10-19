@@ -3,7 +3,7 @@
 # =========================================================
 FROM node:20-bookworm AS frontend-builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 
 # Copy dependency files first for caching
 COPY package*.json ./
@@ -45,7 +45,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY python/ ./
 
 # Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/dist ./static
+COPY --from=frontend-builder /app/dist ./static
 
 # Create necessary directories
 RUN mkdir -p /app/temp /app/data

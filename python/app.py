@@ -21,7 +21,7 @@ from processors.classifier import ClassificationEngine
 from optimize_file_cleanup import ResourceManager
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)  # Enable CORS for React frontend communication
 
 # Global classification engine for managing results
@@ -772,6 +772,22 @@ def internal_error(error):
             'details': 'An unexpected error occurred on the server'
         }
     }), 500
+
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """Serve React frontend for all non-API routes"""
+    if path.startswith('api/'):
+        # API routes should return 404 if not found
+        abort(404)
+    
+    # Try to serve static file first
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        return app.send_static_file(path)
+    
+    # Fallback to index.html for React routing
+    return app.send_static_file('index.html')
 
 
 if __name__ == '__main__':
