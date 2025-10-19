@@ -227,7 +227,7 @@
 }
 
 .json-editor.has-error {
-  background: #7f1d1d;
+  background: #cd3d3d60;
 }
 
 .json-editor::placeholder {
@@ -569,7 +569,7 @@
   cursor: pointer;
 }
 
-.validator-content.has-fullscreen > :not(.fullscreen) {
+.validator-content.has-fullscreen> :not(.fullscreen) {
   display: none;
 }
 

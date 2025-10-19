@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import json2md from 'json2md'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -55,7 +55,43 @@ function JsonToMarkdownPage() {
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [fullscreenSection, setFullscreenSection] = useState<'input' | 'output' | null>(null)
   const [jsonError, setJsonError] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [shouldHighlight, setShouldHighlight] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 복사-붙여넣기 감지 및 최적화
+  useEffect(() => {
+    // 대용량 텍스트 감지
+    const isLargeText = jsonInput.length > 5000
+    
+    if (isLargeText) {
+      // 대용량 텍스트의 경우 syntax highlighting 비활성화
+      setShouldHighlight(false)
+      setIsProcessing(true)
+      
+      // 처리 완료 표시를 위한 짧은 지연
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current)
+      }
+      
+      processingTimeoutRef.current = setTimeout(() => {
+        setIsProcessing(false)
+      }, 300)
+    } else {
+      // 소용량 텍스트는 즉시 syntax highlighting 활성화
+      setShouldHighlight(true)
+      setIsProcessing(false)
+    }
+
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current)
+      }
+    }
+  }, [jsonInput])
+
+
 
   const handleConvert = () => {
     try {
@@ -65,20 +101,217 @@ function JsonToMarkdownPage() {
       setJsonError('')
       setIsPreviewMode(false)
     } catch (error) {
-      setJsonError(error instanceof Error ? error.message : 'Invalid JSON')
+      setJsonError(error instanceof Error ? error.message : 'Invalid JSON or unsupported json2md format')
       setMarkdownOutput('')
     }
   }
 
-  const handleJsonInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setJsonInput(e.target.value)
+  const handleJsonInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value
+    const isLargeChange = Math.abs(newValue.length - jsonInput.length) > 1000
+    
+    setJsonInput(newValue)
     setJsonError('')
-  }
+    
+    // 대용량 복사-붙여넣기 감지
+    if (isLargeChange && newValue.length > 5000) {
+      setIsProcessing(true)
+      setShouldHighlight(false)
+    }
+  }, [jsonInput.length])
+
+  // 복사-붙여넣기 이벤트 직접 처리
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    
+    if (pastedText.length > 5000) {
+      // 대용량 붙여넣기 최적화
+      setIsProcessing(true)
+      setShouldHighlight(false)
+      
+      // 즉시 처리 완료 표시
+      setTimeout(() => {
+        setIsProcessing(false)
+      }, 200)
+    }
+  }, [])
+
+  // 복사-붙여넣기 최적화된 JSON 하이라이팅
+  const jsonHighlightElement = useMemo(() => {
+    // 처리 중이거나 syntax highlighting이 비활성화된 경우
+    if (isProcessing) {
+      return (
+        <div style={{
+          margin: 0,
+          padding: '1rem',
+          background: 'transparent',
+          fontSize: '14px',
+          lineHeight: '1.5',
+          fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+          minHeight: '300px',
+          maxHeight: '600px',
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          color: '#6b7280',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          <div style={{ 
+            width: '32px', 
+            height: '32px', 
+            border: '3px solid #374151',
+            borderTop: '3px solid #6366f1',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <span>Processing large JSON...</span>
+        </div>
+      )
+    }
+
+    if (!shouldHighlight || jsonInput.length > 5000) {
+      return (
+        <pre style={{
+          margin: 0,
+          padding: '1rem',
+          background: 'transparent',
+          fontSize: '14px',
+          lineHeight: '1.5',
+          fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+          minHeight: '300px',
+          maxHeight: '600px',
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          color: '#f9fafb',
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word'
+        }}>
+          {jsonInput || ' '}
+        </pre>
+      )
+    }
+    
+    return (
+      <SyntaxHighlighter
+        language="json"
+        style={vscDarkPlus}
+        customStyle={{
+          margin: 0,
+          padding: '1rem',
+          background: 'transparent',
+          fontSize: '14px',
+          lineHeight: '1.5',
+          fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+          minHeight: '300px',
+          maxHeight: '600px',
+          overflow: 'hidden',
+          pointerEvents: 'none'
+        }}
+        showLineNumbers={false}
+        wrapLines={true}
+      >
+        {jsonInput || ' '}
+      </SyntaxHighlighter>
+    )
+  }, [jsonInput, shouldHighlight, isProcessing])
+
+  // Memoized markdown preview
+  const markdownPreviewElement = useMemo(() => {
+    // 대용량 마크다운의 경우 간단한 렌더링
+    if (markdownOutput.length > 50000) {
+      return (
+        <div style={{ 
+          padding: '1rem',
+          color: '#d1d5db',
+          fontSize: '14px',
+          lineHeight: '1.6',
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word'
+        }}>
+          <p style={{ color: '#fbbf24', marginBottom: '1rem' }}>
+            ⚠️ Large content detected. Showing simplified preview for better performance.
+          </p>
+          {markdownOutput.substring(0, 5000)}
+          {markdownOutput.length > 5000 && (
+            <p style={{ color: '#9ca3af', fontStyle: 'italic', marginTop: '1rem' }}>
+              ... and {markdownOutput.length - 5000} more characters
+            </p>
+          )}
+        </div>
+      )
+    }
+    
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ className, children, ...props }: any) {
+            const match = /language-(\w+)/.exec(className || '')
+            const inline = props.inline
+            return !inline && match ? (
+              <SyntaxHighlighter
+                style={vscDarkPlus}
+                language={match[1]}
+                PreTag="div"
+              >
+                {String(children).replace(/\n$/, '')}
+              </SyntaxHighlighter>
+            ) : (
+              <code className={className}>
+                {children}
+              </code>
+            )
+          }
+        }}
+      >
+        {markdownOutput}
+      </ReactMarkdown>
+    )
+  }, [markdownOutput])
+
+  // Memoized markdown raw display
+  const markdownRawElement = useMemo(() => {
+    // 대용량 마크다운의 경우 syntax highlighting 비활성화
+    if (markdownOutput.length > 10000) {
+      return (
+        <pre style={{
+          margin: 0,
+          borderRadius: '4px',
+          fontSize: '14px',
+          color: '#f9fafb',
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word',
+          padding: '1rem'
+        }}>
+          {markdownOutput}
+        </pre>
+      )
+    }
+    
+    return (
+      <SyntaxHighlighter
+        language="markdown"
+        style={vscDarkPlus}
+        customStyle={{
+          margin: 0,
+          borderRadius: '4px',
+          fontSize: '14px'
+        }}
+      >
+        {markdownOutput}
+      </SyntaxHighlighter>
+    )
+  }, [markdownOutput])
 
   const handleLoadSample = () => {
     setJsonInput(JSON.stringify(dummyData, null, 2))
     setJsonError('')
   }
+
+
 
   const togglePreview = () => {
     setIsPreviewMode(!isPreviewMode)
@@ -172,7 +405,7 @@ function JsonToMarkdownPage() {
                 <button
                   className="action-btn sample-btn"
                   onClick={handleLoadSample}
-                  title="Load Sample Data"
+                  title="Load json2md Sample Data"
                 >
                   <span className="btn-icon">📄</span>
                   <span className="btn-text">Sample</span>
@@ -201,30 +434,12 @@ function JsonToMarkdownPage() {
                   className="json-editor-textarea"
                   value={jsonInput}
                   onChange={handleJsonInputChange}
-                  placeholder="Enter JSON array for json2md conversion..."
+                  onPaste={handlePaste}
+                  placeholder="Enter json2md format JSON data..."
                   spellCheck={false}
                 />
                 <div className="json-editor-highlight">
-                  <SyntaxHighlighter
-                    language="json"
-                    style={vscDarkPlus}
-                    customStyle={{
-                      margin: 0,
-                      padding: '1rem',
-                      background: 'transparent',
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-                      minHeight: '300px',
-                      maxHeight: '600px',
-                      overflow: 'hidden',
-                      pointerEvents: 'none'
-                    }}
-                    showLineNumbers={false}
-                    wrapLines={true}
-                  >
-                    {jsonInput || ' '}
-                  </SyntaxHighlighter>
+                  {jsonHighlightElement}
                 </div>
               </div>
               {jsonError && (
@@ -291,44 +506,11 @@ function JsonToMarkdownPage() {
             {markdownOutput ? (
               isPreviewMode ? (
                 <div className="markdown-preview">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code({ className, children, ...props }: any) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        const inline = props.inline
-                        return !inline && match ? (
-                          <SyntaxHighlighter
-                            style={vscDarkPlus}
-                            language={match[1]}
-                            PreTag="div"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code className={className}>
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                  >
-                    {markdownOutput}
-                  </ReactMarkdown>
+                  {markdownPreviewElement}
                 </div>
               ) : (
                 <div className="markdown-raw">
-                  <SyntaxHighlighter
-                    language="markdown"
-                    style={vscDarkPlus}
-                    customStyle={{
-                      margin: 0,
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  >
-                    {markdownOutput}
-                  </SyntaxHighlighter>
+                  {markdownRawElement}
                 </div>
               )
             ) : (
