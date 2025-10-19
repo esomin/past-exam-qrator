@@ -79,11 +79,12 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
     """원본 데이터를 플래튼하여 필요한 속성만 추출하고 통계 정보 반환"""
     flattened_data = []
     seen_ids = set()  # ID 중복 체크용
+    seen_questions = set()  # 문제 중복 체크용
     
     # 통계 정보
     original_questions = len(input_data)
     original_answers = 0
-    duplicate_count = 0
+    removed_duplicate_answers = 0  # 제거된 중복 선택지 수
     
     for question in input_data:
         # question 레벨 속성 추출
@@ -104,10 +105,10 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
         original_answers += len(answer_set)
         
         for answer in answer_set:
-            # ID 중복 체크
+            # ID 중복 체크 (선택지 중복)
             answer_id = answer.get("id")
             if answer_id in seen_ids:
-                duplicate_count += 1
+                removed_duplicate_answers += 1
                 continue  # 중복된 ID는 건너뛰기
             seen_ids.add(answer_id)
             
@@ -146,19 +147,26 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
             }
             
             flattened_data.append(flattened_item)
+            
+            # 문제 제목 추가 (중복 문제 계산용)
+            seen_questions.add(question_data["title"])
     
     # categoryTitle로 정렬
     flattened_data.sort(key=lambda x: (x.get('categoryTitle', ''), x.get('id', 0)))
     
     # 결과 문제 수 계산 (고유한 question_title 개수)
-    unique_questions = len(set(item.get('question_title', '') for item in flattened_data))
+    unique_questions = len(seen_questions)
+    
+    # 제거된 동일 문제 수 계산
+    removed_duplicate_questions = original_questions - unique_questions
     
     stats = {
         'original_questions': original_questions,
         'original_answers': original_answers,
         'result_questions': unique_questions,
         'result_answers': len(flattened_data),
-        'duplicate_count': duplicate_count
+        'duplicate_count': removed_duplicate_questions,  # 제거된 동일 문제 수
+        'removed_duplicate_answers': removed_duplicate_answers  # 제거된 동일 선택지 수
     }
     
     return flattened_data, stats
@@ -283,14 +291,28 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         
         # Memory-optimized conversion using resource manager
         def convert_chunk(chunk):
-            return flatten_original_data(chunk)
+            flattened_data, _ = flatten_original_data(chunk)
+            return flattened_data
         
         # Process in chunks if dataset is large
         if len(validated_data) > 5000:
             app.logger.info(f"Large dataset detected ({len(validated_data)} questions), processing in chunks")
             flattened_data = resource_manager.process_large_dataset(validated_data, convert_chunk)
+            # 청크 처리 시 통계는 별도 계산
+            original_answers = sum(len(q.get("answerSet", [])) for q in validated_data)
+            unique_questions = len(set(item.get('question_title', '') for item in flattened_data))
+            removed_duplicate_answers = original_answers - len(flattened_data)
+            removed_duplicate_questions = len(validated_data) - unique_questions
+            stats = {
+                'original_questions': len(validated_data),
+                'original_answers': original_answers,
+                'result_questions': unique_questions,
+                'result_answers': len(flattened_data),
+                'duplicate_count': removed_duplicate_questions,
+                'removed_duplicate_answers': removed_duplicate_answers
+            }
         else:
-            flattened_data = flatten_original_data(validated_data)
+            flattened_data, stats = flatten_original_data(validated_data)
         
         # 분류 옵션에 따라 다른 처리
         results_data = {}
@@ -325,7 +347,12 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
             if option in results_data:
                 # 각 분류 결과를 저장하고 다운로드 ID 생성
                 download_id = str(uuid.uuid4())
-                filename = f"{os.path.splitext(filename)[0]}_{option}.json"
+                # 연도별 분류는 특별한 파일명 사용
+                if option == 'year':
+                    filename_suffix = "연도별분류"
+                else:
+                    filename_suffix = option
+                filename = f"{os.path.splitext(filename)[0]}_{filename_suffix}.json"
                 
                 # 분류 엔진에 결과 저장 (임시)
                 from dataclasses import dataclass
@@ -394,7 +421,8 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
             'results': results,
             'processed_items': len(flattened_data),
             'original_questions': len(validated_data),
-            'file_size_mb': file_size_mb
+            'file_size_mb': file_size_mb,
+            'statistics': stats
         }
         
     except json.JSONDecodeError as e:

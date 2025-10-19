@@ -38,9 +38,19 @@ export interface ProcessFileRequest {
   options: string[]; // ["category", "institution", "year"]
 }
 
+export interface ProcessingStatistics {
+  original_questions: number;
+  original_answers: number;
+  result_questions: number;
+  result_answers: number;
+  duplicate_count: number;
+  removed_duplicate_answers: number;
+}
+
 export interface ProcessFileResponse {
   success: boolean;
   results?: ProcessingResultInfo[];
+  statistics?: ProcessingStatistics;
   error?: ApiError;
 }
 
