@@ -114,7 +114,7 @@ export class ErrorHandler {
    * Log error for debugging (in development)
    */
   static logError(error: ApiError | NetworkError, context?: string): void {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.group(`🚨 Error${context ? ` in ${context}` : ''}`);
       console.error('Code:', error.code);
       console.error('Message:', error.message);
