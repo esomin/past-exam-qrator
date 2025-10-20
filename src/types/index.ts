@@ -13,11 +13,15 @@ export interface ProcessingResult {
   data: any;
   downloadUrl?: string;
   sourceId?: string; // For markdown files that reference original JSON data
+  sourceFilename?: string; // Original source file name
+  selected?: boolean; // For bulk download selection
 }
 
 export interface FileUploadProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (files: File[]) => void;
   isUploading: boolean;
+  multiple?: boolean;
+  maxFiles?: number;
 }
 
 export interface ProcessingOptionsProps {
@@ -30,12 +34,22 @@ export interface ProcessingOptionsProps {
 export interface ResultsDisplayProps {
   results: ProcessingResult[];
   onDownload: (resultId: string) => void;
+  onBulkDownload?: (selectedIds: string[]) => void;
+  onSelectionChange?: (resultId: string, selected: boolean) => void;
 }
 
 // API Request/Response Types
 export interface ProcessFileRequest {
   file_data: string; // base64 encoded JSON
   filename: string;
+  options: string[]; // ["category", "institution", "year"]
+}
+
+export interface ProcessMultipleFilesRequest {
+  files: Array<{
+    file_data: string; // base64 encoded JSON
+    filename: string;
+  }>;
   options: string[]; // ["category", "institution", "year"]
 }
 
@@ -52,6 +66,8 @@ export interface ProcessFileResponse {
   success: boolean;
   results?: ProcessingResultInfo[];
   statistics?: ProcessingStatistics;
+  processed_items?: number;
+  original_questions?: number;
   error?: ApiError;
 }
 
@@ -59,6 +75,7 @@ export interface ProcessingResultInfo {
   type: string;
   filename: string;
   download_id: string;
+  sourceFilename?: string;
 }
 
 export interface ApiError {

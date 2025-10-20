@@ -365,15 +365,21 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
       throw new Error('No files selected for download');
     }
 
+    console.log('Downloading multiple files:', { resultIds, archiveName });
+    console.log('API Base URL:', API_BASE_URL);
+
     // Use retry mechanism for bulk download requests
     const response = await retryRequest(
-      () => api.post('/download-multiple', { 
-        result_ids: resultIds,
-        archive_name: archiveName
-      }, {
-        responseType: 'blob',
-        timeout: 120000, // 2 minute timeout for bulk downloads
-      }),
+      () => {
+        console.log('Making request to:', `${API_BASE_URL}/download-multiple`);
+        return api.post('/download-multiple', { 
+          result_ids: resultIds,
+          archive_name: archiveName
+        }, {
+          responseType: 'blob',
+          timeout: 120000, // 2 minute timeout for bulk downloads
+        });
+      },
       2,
       2000
     );
@@ -539,6 +545,73 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
     }
     
     console.error(`Final error message: ${errorMessage}`);
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Download markdown file converted from JSON data
+ */
+export const downloadMarkdownFile = async (downloadId: string, filename: string, excludeColumns: string[] = []): Promise<void> => {
+  try {
+    // Validate inputs
+    if (!downloadId || !filename) {
+      throw new Error('Download ID and filename are required');
+    }
+
+    // Prepare query parameters
+    const params = new URLSearchParams();
+    if (excludeColumns.length > 0) {
+      params.append('exclude_columns', excludeColumns.join(','));
+    }
+
+    const url = `/convert-to-markdown/${downloadId}${params.toString() ? `?${params.toString()}` : ''}`;
+
+    // Use retry mechanism for download requests
+    const response = await retryRequest(
+      () => api.get(url, {
+        responseType: 'blob',
+        timeout: 60000, // 60 second timeout for downloads
+      }),
+      2, // Fewer retries for downloads
+      2000
+    );
+
+    // Validate response
+    if (!response.data || response.data.size === 0) {
+      throw new Error('Downloaded file is empty or corrupted');
+    }
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'text/markdown' });
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    try {
+      // Create temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+    } finally {
+      // Always cleanup the blob URL
+      window.URL.revokeObjectURL(blobUrl);
+    }
+  } catch (error) {
+    const apiError = handleApiError(error as AxiosError);
+    
+    // Provide more specific error messages for downloads
+    let errorMessage = apiError.message;
+    if (apiError.code === 'NETWORK_ERROR') {
+      errorMessage = 'Markdown download failed due to network issues. Please check your connection and try again.';
+    } else if (apiError.code === 'FILE_NOT_FOUND') {
+      errorMessage = 'The requested file is no longer available. It may have expired.';
+    }
+    
     throw new Error(errorMessage);
   }
 };

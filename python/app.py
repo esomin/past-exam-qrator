@@ -60,6 +60,100 @@ def extract_year_from_solve(solve: str) -> str:
     return "Unknown"
 
 
+def convert_json_to_markdown(data: Any, exclude_columns: List[str] = None) -> str:
+    """Convert JSON data to Markdown format"""
+    if exclude_columns is None:
+        exclude_columns = []
+    
+    if not data:
+        return "# No Data Available\n\nThe provided data is empty."
+    
+    # Handle different data structures
+    if isinstance(data, dict):
+        # If it's a dictionary (grouped data), process each group
+        markdown_content = []
+        
+        for group_name, items in data.items():
+            markdown_content.append(f"# {group_name}\n")
+            
+            if isinstance(items, list) and items:
+                # Create table from list of items
+                table_md = create_markdown_table(items, exclude_columns)
+                markdown_content.append(table_md)
+            else:
+                markdown_content.append("No items in this group.\n")
+            
+            markdown_content.append("\n---\n")
+        
+        return "\n".join(markdown_content)
+    
+    elif isinstance(data, list):
+        # If it's a list, create a single table
+        if not data:
+            return "# No Data Available\n\nThe provided list is empty."
+        
+        markdown_content = ["# Data\n"]
+        table_md = create_markdown_table(data, exclude_columns)
+        markdown_content.append(table_md)
+        
+        return "\n".join(markdown_content)
+    
+    else:
+        return f"# Data\n\n```json\n{json.dumps(data, ensure_ascii=False, indent=2)}\n```"
+
+
+def create_markdown_table(items: List[Dict], exclude_columns: List[str] = None) -> str:
+    """Create a markdown table from a list of dictionaries"""
+    if exclude_columns is None:
+        exclude_columns = []
+    
+    if not items:
+        return "No data available.\n"
+    
+    # Get all unique keys from all items, excluding specified columns
+    all_keys = set()
+    for item in items:
+        if isinstance(item, dict):
+            all_keys.update(item.keys())
+    
+    # Remove excluded columns
+    columns = [key for key in all_keys if key not in exclude_columns]
+    
+    if not columns:
+        return "No columns to display after filtering.\n"
+    
+    # Sort columns for consistent output
+    columns.sort()
+    
+    # Create table header
+    header = "| " + " | ".join(columns) + " |"
+    separator = "| " + " | ".join(["---"] * len(columns)) + " |"
+    
+    # Create table rows
+    rows = []
+    for item in items:
+        if isinstance(item, dict):
+            row_values = []
+            for col in columns:
+                value = item.get(col, "")
+                # Clean up the value for markdown
+                if value is None:
+                    value = ""
+                else:
+                    value = str(value).replace("|", "\\|").replace("\n", " ").replace("\r", "")
+                    # Limit cell content length
+                    if len(value) > 100:
+                        value = value[:97] + "..."
+                row_values.append(value)
+            
+            row = "| " + " | ".join(row_values) + " |"
+            rows.append(row)
+    
+    # Combine all parts
+    table_parts = [header, separator] + rows
+    return "\n".join(table_parts) + "\n"
+
+
 def determine_is_correct(title_type: str, answer_kind: str) -> Optional[bool]:
     """titleType과 answerKind를 기반으로 isCorrect 값 결정"""
     if title_type == "NEGATIVE" and answer_kind == "X":
@@ -449,6 +543,296 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         raise ProcessingError(f"Processing failed: {str(e)}")
 
 
+@app.route('/api/process-multiple', methods=['POST'])
+def process_multiple_files():
+    """
+    Process multiple uploaded files with selected classification options
+    
+    Expected JSON payload:
+    {
+        "files": [
+            {
+                "file_data": "base64_encoded_json_content",
+                "filename": "file1.json"
+            },
+            {
+                "file_data": "base64_encoded_json_content", 
+                "filename": "file2.json"
+            }
+        ],
+        "options": ["category", "institution", "year"]
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "results": [
+            {
+                "type": "category",
+                "filename": "combined_category_classification.json",
+                "download_id": "uuid"
+            }
+        ],
+        "processed_items": 2468,
+        "original_questions": 1134,
+        "files_processed": 2
+    }
+    """
+    try:
+        # Validate request
+        if not request.is_json:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_REQUEST',
+                    'message': 'Request must be JSON',
+                    'details': 'Content-Type must be application/json'
+                }
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['files', 'options']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'MISSING_FIELD',
+                        'message': f'Missing required field: {field}',
+                        'details': f'The field "{field}" is required in the request body'
+                    }
+                }), 400
+        
+        files = data['files']
+        options = data['options']
+        
+        # Validate files array
+        if not isinstance(files, list) or not files:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_FILES',
+                    'message': 'At least one file must be provided',
+                    'details': 'The "files" field must be a non-empty array'
+                }
+            }), 400
+        
+        # Validate file limit
+        max_files = 10
+        if len(files) > max_files:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'TOO_MANY_FILES',
+                    'message': f'Too many files: {len(files)} (max: {max_files})',
+                    'details': f'Maximum {max_files} files can be processed at once'
+                }
+            }), 400
+        
+        # Validate each file
+        for i, file_info in enumerate(files):
+            if not isinstance(file_info, dict):
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_FILE_FORMAT',
+                        'message': f'File {i+1} must be an object',
+                        'details': 'Each file must have "file_data" and "filename" fields'
+                    }
+                }), 400
+            
+            if 'file_data' not in file_info or 'filename' not in file_info:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'MISSING_FILE_FIELDS',
+                        'message': f'File {i+1} missing required fields',
+                        'details': 'Each file must have "file_data" and "filename" fields'
+                    }
+                }), 400
+        
+        # Validate options
+        valid_options = {'category', 'institution', 'year', 'flatten'}
+        
+        if not isinstance(options, list) or not options:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OPTIONS',
+                    'message': 'At least one processing option must be selected',
+                    'details': f'Valid options are: {", ".join(valid_options)}'
+                }
+            }), 400
+        
+        invalid_options = set(options) - valid_options
+        if invalid_options:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OPTIONS',
+                    'message': f'Invalid processing options: {", ".join(invalid_options)}',
+                    'details': f'Valid options are: {", ".join(valid_options)}'
+                }
+            }), 400
+        
+        # Process all files and combine data
+        combined_data = []
+        total_original_questions = 0
+        total_stats = {
+            'original_questions': 0,
+            'original_answers': 0,
+            'result_questions': 0,
+            'result_answers': 0,
+            'duplicate_count': 0,
+            'removed_duplicate_answers': 0
+        }
+        
+        app.logger.info(f"Processing {len(files)} files with options: {options}")
+        
+        for i, file_info in enumerate(files):
+            try:
+                app.logger.info(f"Processing file {i+1}/{len(files)}: {file_info['filename']}")
+                
+                # Process individual file
+                file_result = process_file_data(
+                    file_data=file_info['file_data'],
+                    filename=file_info['filename'],
+                    options=['flatten']  # Always flatten for combining
+                )
+                
+                # Get flattened data from stored results
+                if hasattr(app, 'stored_results'):
+                    for result_id, result in app.stored_results.items():
+                        if result.type == 'flatten':
+                            combined_data.extend(result.data)
+                            # Clean up individual flatten result
+                            del app.stored_results[result_id]
+                            break
+                
+                # Accumulate statistics
+                if 'statistics' in file_result:
+                    stats = file_result['statistics']
+                    for key in total_stats:
+                        total_stats[key] += stats.get(key, 0)
+                
+                total_original_questions += file_result.get('original_questions', 0)
+                
+            except Exception as e:
+                app.logger.error(f"Error processing file {i+1} ({file_info['filename']}): {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'FILE_PROCESSING_ERROR',
+                        'message': f'Error processing file {i+1}: {file_info["filename"]}',
+                        'details': str(e)
+                    }
+                }), 400
+        
+        app.logger.info(f"Combined {len(combined_data)} items from {len(files)} files")
+        
+        # Apply classifications to combined data
+        results_data = {}
+        
+        if 'institution' in options:
+            results_data['institution'] = classify_by_institution(combined_data)
+        
+        if 'year' in options:
+            results_data['year'] = classify_by_year(combined_data)
+        
+        # Create similarity processor for category classification if needed
+        if 'category' in options:
+            try:
+                temp_dir = resource_manager.file_manager.create_temp_dir()
+                similarity_processor = SimilarityDeduplicator(
+                    input_file=None,
+                    output_dir=temp_dir,
+                    threshold=0.8
+                )
+                _, similar_groups = similarity_processor.process_similarity_from_data(combined_data)
+                results_data['category'] = similar_groups
+            except Exception as e:
+                app.logger.warning(f"Category classification failed: {str(e)}")
+        
+        # Generate API results
+        api_results = []
+        
+        for option in options:
+            if option in results_data:
+                download_id = str(uuid.uuid4())
+                
+                # Generate combined filename
+                if len(files) == 1:
+                    base_filename = os.path.splitext(files[0]['filename'])[0]
+                else:
+                    base_filename = f"combined_{len(files)}_files"
+                
+                if option == 'institution':
+                    result_filename = f"{base_filename}_기관별.json"
+                elif option == 'year':
+                    result_filename = f"{base_filename}_연도별.json"
+                elif option == 'category':
+                    result_filename = f"{base_filename}_카테고리별.json"
+                else:
+                    result_filename = f"{base_filename}_{option}.json"
+                
+                # Store result
+                from dataclasses import dataclass
+                from datetime import datetime
+                
+                @dataclass
+                class ClassificationResult:
+                    id: str
+                    type: str
+                    filename: str
+                    data: Any
+                    created_at: datetime
+                    
+                    def to_dict(self):
+                        return {
+                            'type': self.type,
+                            'filename': self.filename,
+                            'download_id': self.id
+                        }
+                
+                result = ClassificationResult(
+                    id=download_id,
+                    type=option,
+                    filename=result_filename,
+                    data=results_data[option],
+                    created_at=datetime.now()
+                )
+                
+                if not hasattr(app, 'stored_results'):
+                    app.stored_results = {}
+                app.stored_results[download_id] = result
+                
+                api_results.append(result.to_dict())
+        
+        app.logger.info(f"Multiple file processing completed: {len(files)} files -> {len(combined_data)} combined items")
+        
+        return jsonify({
+            'success': True,
+            'results': api_results,
+            'processed_items': len(combined_data),
+            'original_questions': total_original_questions,
+            'files_processed': len(files),
+            'statistics': total_stats
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Unexpected error in process_multiple_files: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'INTERNAL_ERROR',
+                'message': 'An unexpected error occurred',
+                'details': 'Please try again or contact support'
+            }
+        }), 500
+
+
 @app.route('/api/process', methods=['POST'])
 def process_file():
     """
@@ -593,6 +977,300 @@ def get_data(download_id: str):
             'error': {
                 'code': 'DATA_FETCH_ERROR',
                 'message': 'Failed to fetch data',
+                'details': str(e)
+            }
+        }), 500
+
+
+@app.route('/api/test-download-multiple', methods=['POST'])
+def test_download_multiple():
+    """Test endpoint for download-multiple"""
+    return jsonify({
+        'success': True,
+        'message': 'Test endpoint working',
+        'method': request.method,
+        'path': request.path
+    })
+
+@app.route('/api/download-multiple', methods=['POST'])
+def download_multiple_files():
+    """
+    Download multiple processed files as a ZIP archive
+    
+    Expected JSON payload:
+    {
+        "result_ids": ["uuid1", "uuid2", "uuid3"],
+        "archive_name": "processed_files.zip"
+    }
+    
+    Returns:
+        ZIP file download or error response
+    """
+    try:
+        app.logger.info(f"Received download-multiple request from {request.remote_addr}")
+        app.logger.info(f"Request method: {request.method}")
+        app.logger.info(f"Request content type: {request.content_type}")
+        
+        # Validate request
+        if not request.is_json:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_REQUEST',
+                    'message': 'Request must be JSON',
+                    'details': 'Content-Type must be application/json'
+                }
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'result_ids' not in data:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'MISSING_FIELD',
+                    'message': 'Missing required field: result_ids',
+                    'details': 'The field "result_ids" is required in the request body'
+                }
+            }), 400
+        
+        result_ids = data['result_ids']
+        archive_name = data.get('archive_name', 'processed_files.zip')
+        
+        # Validate result_ids
+        if not isinstance(result_ids, list) or not result_ids:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_RESULT_IDS',
+                    'message': 'result_ids must be a non-empty array',
+                    'details': 'Provide at least one result ID to download'
+                }
+            }), 400
+        
+        # Check if all result IDs exist
+        if not hasattr(app, 'stored_results'):
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'NO_RESULTS',
+                    'message': 'No processed results available',
+                    'details': 'No files have been processed yet'
+                }
+            }), 404
+        
+        missing_ids = []
+        valid_result_ids = []
+        
+        for result_id in result_ids:
+            # Check if this is a markdown request (result_id ends with '_md')
+            if result_id.endswith('_md'):
+                # For markdown requests, check if the original ID exists
+                original_id = result_id[:-3]  # Remove '_md' suffix
+                if original_id in app.stored_results:
+                    valid_result_ids.append(result_id)
+                else:
+                    missing_ids.append(result_id)
+            else:
+                # For regular requests, check if the ID exists directly
+                if result_id in app.stored_results:
+                    valid_result_ids.append(result_id)
+                else:
+                    missing_ids.append(result_id)
+        
+        if missing_ids:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'FILES_NOT_FOUND',
+                    'message': f'Some files not found: {len(missing_ids)} missing',
+                    'details': f'Missing IDs: {", ".join(missing_ids[:5])}{"..." if len(missing_ids) > 5 else ""}'
+                }
+            }), 404
+        
+        if not valid_result_ids:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'NO_VALID_FILES',
+                    'message': 'No valid files to download',
+                    'details': 'All requested files are invalid or expired'
+                }
+            }), 404
+        
+        # Create ZIP archive
+        import zipfile
+        import io
+        
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for result_id in valid_result_ids:
+                
+                try:
+                    # Check if this is a markdown request (result_id ends with '_md')
+                    if result_id.endswith('_md'):
+                        # This is a markdown conversion request
+                        original_id = result_id[:-3]  # Remove '_md' suffix
+                        if original_id in app.stored_results:
+                            original_result = app.stored_results[original_id]
+                            
+                            # Determine exclude columns based on result type
+                            exclude_columns = []
+                            if 'year' in original_result.type:
+                                exclude_columns = ['year']
+                            elif 'institution' in original_result.type:
+                                exclude_columns = ['institution']
+                            
+                            # Convert to markdown
+                            markdown_content = convert_json_to_markdown(original_result.data, exclude_columns)
+                            markdown_filename = original_result.filename.replace('.json', '.md')
+                            
+                            # Add markdown file to ZIP
+                            zip_file.writestr(markdown_filename, markdown_content.encode('utf-8'))
+                        else:
+                            app.logger.warning(f"Original result not found for markdown conversion: {original_id}")
+                    else:
+                        # Regular JSON file
+                        if result_id in app.stored_results:
+                            result = app.stored_results[result_id]
+                            json_content = json.dumps(result.data, ensure_ascii=False, indent=2)
+                            zip_file.writestr(result.filename, json_content.encode('utf-8'))
+                        else:
+                            app.logger.warning(f"Result not found: {result_id}")
+                    
+                except Exception as e:
+                    app.logger.warning(f"Failed to add file {result_id} to ZIP: {str(e)}")
+                    continue
+        
+        zip_buffer.seek(0)
+        
+        # Validate ZIP content
+        if zip_buffer.getvalue() == b'':
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'EMPTY_ARCHIVE',
+                    'message': 'Failed to create archive',
+                    'details': 'No files could be added to the archive'
+                }
+            }), 500
+        
+        # Create response with ZIP file
+        response = send_file(
+            io.BytesIO(zip_buffer.getvalue()),
+            as_attachment=True,
+            download_name=archive_name,
+            mimetype='application/zip'
+        )
+        
+        # Clean up downloaded results after successful bulk download
+        @response.call_on_close
+        def cleanup():
+            try:
+                for result_id in result_ids:
+                    # For markdown requests, don't delete the original result
+                    if result_id.endswith('_md'):
+                        continue
+                    # Only delete actual stored results
+                    if hasattr(app, 'stored_results') and result_id in app.stored_results:
+                        del app.stored_results[result_id]
+            except Exception as e:
+                app.logger.error(f"Cleanup error after bulk download: {str(e)}")
+        
+        app.logger.info(f"Bulk download completed: {len(valid_result_ids)} files in {archive_name}")
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"Bulk download error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'BULK_DOWNLOAD_ERROR',
+                'message': 'Failed to create bulk download',
+                'details': str(e)
+            }
+        }), 500
+
+
+@app.route('/api/convert-to-markdown/<download_id>', methods=['GET'])
+def convert_to_markdown(download_id: str):
+    """
+    Convert processed JSON data to Markdown format
+    
+    Args:
+        download_id: UUID of the processed file
+        
+    Query parameters:
+        exclude_columns: Comma-separated list of columns to exclude
+        
+    Returns:
+        Markdown file download or error response
+    """
+    try:
+        # Check if download ID exists in stored results
+        if not hasattr(app, 'stored_results') or download_id not in app.stored_results:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'FILE_NOT_FOUND',
+                    'message': 'Download ID not found',
+                    'details': 'The requested file may have expired or does not exist'
+                }
+            }), 404
+        
+        result = app.stored_results[download_id]
+        
+        # Get exclude columns from query parameters
+        exclude_columns_param = request.args.get('exclude_columns', '')
+        exclude_columns = [col.strip() for col in exclude_columns_param.split(',') if col.strip()]
+        
+        # Convert to markdown
+        markdown_content = convert_json_to_markdown(result.data, exclude_columns)
+        
+        # Generate markdown filename
+        markdown_filename = result.filename.replace('.json', '.md')
+        
+        # Create temporary file for download
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_file:
+            temp_file.write(markdown_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Send file and clean up
+            response = send_file(
+                temp_file_path,
+                as_attachment=True,
+                download_name=markdown_filename,
+                mimetype='text/markdown'
+            )
+            
+            # Clean up temporary file after sending
+            @response.call_on_close
+            def cleanup():
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:
+                    app.logger.error(f"Cleanup error: {str(e)}")
+            
+            return response
+            
+        except Exception as e:
+            # Clean up temp file if send_file fails
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+            raise e
+            
+    except Exception as e:
+        app.logger.error(f"Markdown conversion error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'MARKDOWN_CONVERSION_ERROR',
+                'message': 'Failed to convert to markdown',
                 'details': str(e)
             }
         }), 500

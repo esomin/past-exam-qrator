@@ -4,13 +4,13 @@ import ProcessingOptions from '../components/ProcessingOptions'
 import ResultsDisplay from '../components/ResultsDisplay'
 import ErrorDisplay from '../components/ErrorDisplay'
 import ProgressIndicator from '../components/ProgressIndicator'
-import { processFile, downloadFile, fetchJsonData, getServerStatus } from '../services/api'
+import { processFile, processMultipleFiles, downloadFile, downloadMultipleFiles, downloadMarkdownFile, getServerStatus } from '../services/api'
 import { useErrorHandler } from '../utils/errorHandler'
-import { convertJsonToMarkdown } from '../utils/convertJsonToMarkdown'
+
 import type { ProcessingOption, ProcessingResult, ErrorState } from '../types'
 
 function FileProcessorPage() {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [isUploading] = useState(false)
@@ -72,8 +72,8 @@ function FileProcessorPage() {
     return () => clearInterval(interval)
   }, [serverAvailable])
 
-  const handleFileUpload = useCallback((file: File) => {
-    setUploadedFile(file)
+  const handleFileUpload = useCallback((files: File[]) => {
+    setUploadedFiles(files)
     setErrors([])
     setResults([])
     setStatistics(null)
@@ -85,11 +85,11 @@ function FileProcessorPage() {
   }, [])
 
   const handleProcessFile = useCallback(async () => {
-    if (!uploadedFile || selectedOptions.length === 0) {
+    if (uploadedFiles.length === 0 || selectedOptions.length === 0) {
       const errorState = handleError(
         {
           code: 'NO_OPTIONS_SELECTED',
-          message: 'Please upload a file and select at least one processing option'
+          message: `Please upload ${uploadedFiles.length === 0 ? 'at least one file' : 'files'} and select at least one processing option`
         },
         'File Processing'
       )
@@ -126,24 +126,31 @@ function FileProcessorPage() {
       }
 
       // Process with classification options only
-      const response = await processFile(uploadedFile, classificationOptions)
+      const response = uploadedFiles.length === 1
+        ? await processFile(uploadedFiles[0], classificationOptions)
+        : await processMultipleFiles(uploadedFiles, classificationOptions)
 
       setProcessingProgress(100)
       setProcessingMessage('Processing complete!')
 
+      console.log('Processing response:', response)
+      console.log('Selected options:', selectedOptions)
+      console.log('Classification options:', classificationOptions)
+      console.log('Format options:', formatOptions)
+
       if (response.success && response.results) {
         let processedResults: ProcessingResult[] = []
 
-        // Handle JSON format results
-        if (formatOptions.includes('json')) {
-          const jsonResults = response.results.map(result => ({
-            id: result.download_id,
-            type: result.type,
-            filename: result.filename,
-            data: null
-          }))
-          processedResults.push(...jsonResults)
-        }
+        // Handle JSON format results (always include JSON results)
+        const jsonResults = response.results.map(result => ({
+          id: result.download_id,
+          type: result.type,
+          filename: result.filename,
+          data: null,
+          sourceFilename: result.sourceFilename || undefined,
+          selected: false
+        }))
+        processedResults.push(...jsonResults)
 
         // Handle Markdown format results
         if (formatOptions.includes('markdown')) {
@@ -154,7 +161,9 @@ function FileProcessorPage() {
             type: `${result.type}_markdown`,
             filename: result.filename.replace('.json', '.md'),
             data: null, // Will be converted on download
-            sourceId: result.download_id // Store reference to original JSON result
+            sourceId: result.download_id, // Store reference to original JSON result
+            sourceFilename: result.sourceFilename || undefined,
+            selected: false
           }))
           processedResults.push(...markdownResults)
         }
@@ -189,7 +198,46 @@ function FileProcessorPage() {
       setProcessingProgress(0)
       setProcessingMessage('')
     }
-  }, [uploadedFile, selectedOptions, handleError])
+  }, [uploadedFiles, selectedOptions, handleError])
+
+  const handleSelectionChange = useCallback((resultId: string, selected: boolean) => {
+    setResults(prev => prev.map(result =>
+      result.id === resultId ? { ...result, selected } : result
+    ))
+  }, [])
+
+  const handleBulkDownload = useCallback(async (selectedIds: string[]) => {
+    if (selectedIds.length === 0) {
+      const errorState = handleError(
+        {
+          code: 'NO_FILES_SELECTED',
+          message: 'Please select at least one file to download'
+        },
+        'Bulk Download'
+      )
+      setErrors(prev => [...prev, errorState])
+      return
+    }
+
+    try {
+      const archiveName = uploadedFiles.length === 1
+        ? `${uploadedFiles[0].name.replace('.json', '')}_processed.zip`
+        : `processed_files_${new Date().toISOString().slice(0, 10)}.zip`
+
+      await downloadMultipleFiles(selectedIds, archiveName)
+    } catch (err) {
+      const errorState = handleError(
+        {
+          code: 'BULK_DOWNLOAD_ERROR',
+          message: err instanceof Error ? err.message : 'Bulk download failed',
+          details: err instanceof Error ? err.message : 'Unknown bulk download error'
+        },
+        'Bulk Download',
+        () => handleBulkDownload(selectedIds)
+      )
+      setErrors(prev => [...prev, errorState])
+    }
+  }, [uploadedFiles, handleError])
 
   const handleDownload = useCallback(async (resultId: string) => {
     const result = results.find(r => r.id === resultId)
@@ -209,41 +257,19 @@ function FileProcessorPage() {
       // Handle markdown files - fetch JSON data and convert
       if (result.filename.endsWith('.md') && (result as any).sourceId) {
         const sourceId = (result as any).sourceId
-        console.log('Fetching JSON data for markdown conversion, sourceId:', sourceId)
+        console.log('Downloading markdown file from backend, sourceId:', sourceId)
 
-        try {
-          // Fetch the JSON data from the server using the API service
-          const jsonData = await fetchJsonData(sourceId)
-          console.log('Successfully fetched JSON data, converting to markdown...')
-
-          // Determine exclude columns based on result type
-          let excludeColumns: string[] = []
-          if (result.type.includes('year')) {
-            excludeColumns = ['year'] // 연도별 분류에서는 year 컬럼 제외
-          } else if (result.type.includes('institution')) {
-            excludeColumns = ['institution'] // 기관별 분류에서는 institution 컬럼 제외
-          }
-
-          // Convert to markdown with appropriate column exclusions
-          const markdownContent = convertJsonToMarkdown(jsonData, { excludeColumns })
-          console.log('Successfully converted to markdown, downloading...')
-
-          // Download as markdown file
-          const blob = new Blob([markdownContent], { type: 'text/markdown' })
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = result.filename
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
-          
-          console.log('Markdown download completed successfully')
-        } catch (fetchError) {
-          console.error('Failed to fetch JSON data for markdown conversion:', fetchError)
-          throw new Error(`Failed to fetch source data: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`)
+        // Determine exclude columns based on result type
+        let excludeColumns: string[] = []
+        if (result.type.includes('year')) {
+          excludeColumns = ['year'] // 연도별 분류에서는 year 컬럼 제외
+        } else if (result.type.includes('institution')) {
+          excludeColumns = ['institution'] // 기관별 분류에서는 institution 컬럼 제외
         }
+
+        // Download markdown file from backend
+        await downloadMarkdownFile(sourceId, result.filename, excludeColumns)
+        console.log('Markdown download completed successfully')
       } else if (result.data && result.filename.endsWith('.md')) {
         // Handle markdown files with local data
         console.log('Downloading markdown file with local data')
@@ -275,7 +301,7 @@ function FileProcessorPage() {
     }
   }, [results, handleError])
 
-  const canProcess = uploadedFile && selectedOptions.length > 0 && !isProcessing && serverAvailable
+  const canProcess = uploadedFiles.length > 0 && selectedOptions.length > 0 && !isProcessing && serverAvailable
 
   const dismissError = useCallback((index: number) => {
     setErrors(prev => prev.filter((_, i) => i !== index))
@@ -359,11 +385,13 @@ function FileProcessorPage() {
             <FileUpload
               onFileUpload={handleFileUpload}
               isUploading={isUploading}
+              multiple={true}
+              maxFiles={10}
             />
           </div>
         </section>
 
-        {uploadedFile && (
+        {uploadedFiles.length > 0 && (
           <section className="workflow-step options-step" aria-labelledby="options-heading">
             <div className="step-header">
               <div className="step-number" aria-hidden="true">2</div>
@@ -380,7 +408,7 @@ function FileProcessorPage() {
           </section>
         )}
 
-        {uploadedFile && selectedOptions.length > 0 && (
+        {uploadedFiles.length > 0 && selectedOptions.length > 0 && (
           <section className="workflow-step process-step" aria-labelledby="process-heading">
             <div className="step-header">
               <div className="step-number" aria-hidden="true">3</div>
@@ -406,7 +434,7 @@ function FileProcessorPage() {
                 )}
               </button>
               <p id="process-description" className="process-description">
-                Click to start processing your file with the selected classification options
+                Click to start processing your {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} with the selected classification options
               </p>
             </div>
           </section>
@@ -422,9 +450,9 @@ function FileProcessorPage() {
               {isProcessing && (
                 <div className="results-loading" role="status" aria-live="polite">
                   <div className="results-loading-spinner" aria-hidden="true"></div>
-                  <div className="results-loading-text">Processing your file...</div>
+                  <div className="results-loading-text">Processing your {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}...</div>
                   <div className="results-loading-subtext">
-                    This may take a few moments depending on file size
+                    This may take a few moments depending on file size{uploadedFiles.length > 1 ? 's' : ''}
                   </div>
                 </div>
               )}
@@ -465,6 +493,8 @@ function FileProcessorPage() {
                   <ResultsDisplay
                     results={results}
                     onDownload={handleDownload}
+                    onBulkDownload={handleBulkDownload}
+                    onSelectionChange={handleSelectionChange}
                   />
                 </>
               )}

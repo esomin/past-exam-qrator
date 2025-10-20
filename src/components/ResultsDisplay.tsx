@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   FiFolder,
   FiHome,
@@ -7,14 +7,90 @@ import {
   FiDownload,
   FiLoader,
   FiX,
-  FiBarChart
+  FiBarChart,
+  FiPackage
 } from 'react-icons/fi';
 import type { ResultsDisplayProps } from '../types';
 
-export default function ResultsDisplay({ results, onDownload }: ResultsDisplayProps) {
+export default function ResultsDisplay({ 
+  results, 
+  onDownload, 
+  onBulkDownload, 
+  onSelectionChange 
+}: ResultsDisplayProps) {
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [downloadProgress, setDownloadProgress] = useState<Map<string, number>>(new Map());
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+
+  const selectedResults = useMemo(() => 
+    results.filter(result => result.selected), 
+    [results]
+  );
+
+  const allSelected = useMemo(() => 
+    results.length > 0 && results.every(result => result.selected), 
+    [results]
+  );
+
+  const someSelected = useMemo(() => 
+    results.some(result => result.selected), 
+    [results]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    const newSelected = !allSelected;
+    results.forEach(result => {
+      if (onSelectionChange) {
+        onSelectionChange(result.id, newSelected);
+      }
+    });
+  }, [allSelected, results, onSelectionChange]);
+
+  const handleSelectionChange = useCallback((resultId: string, selected: boolean) => {
+    if (onSelectionChange) {
+      onSelectionChange(resultId, selected);
+    }
+  }, [onSelectionChange]);
+
+  // Group results by source filename for better organization
+  const groupedResults = useMemo(() => {
+    const groups = new Map<string, typeof results>();
+    results.forEach(result => {
+      const sourceFile = result.sourceFilename || 'Unknown';
+      if (!groups.has(sourceFile)) {
+        groups.set(sourceFile, []);
+      }
+      groups.get(sourceFile)!.push(result);
+    });
+    return groups;
+  }, [results]);
+
+  const handleSourceFileSelectAll = useCallback((sourceFile: string) => {
+    const fileResults = groupedResults.get(sourceFile) || [];
+    const allFileSelected = fileResults.every(result => result.selected);
+    const newSelected = !allFileSelected;
+    
+    fileResults.forEach(result => {
+      if (onSelectionChange) {
+        onSelectionChange(result.id, newSelected);
+      }
+    });
+  }, [groupedResults, onSelectionChange]);
+
+  const handleBulkDownload = useCallback(async () => {
+    if (!onBulkDownload || selectedResults.length === 0) return;
+
+    setIsBulkDownloading(true);
+    try {
+      const selectedIds = selectedResults.map(result => result.id);
+      await onBulkDownload(selectedIds);
+    } catch (error) {
+      console.error('Bulk download failed:', error);
+    } finally {
+      setIsBulkDownloading(false);
+    }
+  }, [onBulkDownload, selectedResults]);
 
   const handleDownload = async (resultId: string) => {
     setDownloadingIds(prev => new Set(prev).add(resultId));
@@ -91,88 +167,177 @@ export default function ResultsDisplay({ results, onDownload }: ResultsDisplayPr
 
   return (
     <div className="results-display-container">
-      <h3 className="results-title">Processing Results</h3>
-      <p className="results-description">
-        Your file has been processed successfully. Download the results below:
-      </p>
+      <div className="results-header">
+        <div className="results-title-section">
+          <h3 className="results-title">Processing Results</h3>
+          <p className="results-description">
+            Your {results.length > 1 ? 'files have' : 'file has'} been processed successfully. 
+            {onBulkDownload && ' Select files and download individually or in bulk:'}
+          </p>
+        </div>
+        
+        {onBulkDownload && results.length > 1 && (
+          <div className="bulk-actions">
+            <label className="select-all-label">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={input => {
+                  if (input) input.indeterminate = someSelected && !allSelected;
+                }}
+                onChange={handleSelectAll}
+                className="select-all-checkbox"
+              />
+              Select All ({results.length})
+            </label>
+            
+            <button
+              className={`bulk-download-btn ${isBulkDownloading ? 'downloading' : ''}`}
+              onClick={handleBulkDownload}
+              disabled={selectedResults.length === 0 || isBulkDownloading}
+            >
+              {isBulkDownloading ? (
+                <>
+                  <FiLoader className="download-spinner" />
+                  Creating Archive...
+                </>
+              ) : (
+                <>
+                  <FiPackage className="bulk-icon" />
+                  Download Selected ({selectedResults.length})
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
 
-      <div className="results-list">
-        {results.map((result) => {
-          const isDownloading = downloadingIds.has(result.id);
-          const error = errors.get(result.id);
-          const progress = downloadProgress.get(result.id);
-
+      <div className="results-content">
+        {Array.from(groupedResults.entries()).map(([sourceFile, fileResults]) => {
+          const allFileSelected = fileResults.every(result => result.selected);
+          const someFileSelected = fileResults.some(result => result.selected);
+          
           return (
-            <div key={result.id} className="result-item">
-              <div className="result-info">
-                <div className="result-icon">
-                  {getFileTypeIcon(result.type)}
-                </div>
-                <div className="result-details">
-                  <h4 className="result-item-title">
-                    {formatFileType(result.type)}
+            <div key={sourceFile} className="source-file-group">
+              {groupedResults.size > 1 && (
+                <div className="source-file-header">
+                  <h4 className="source-file-title">
+                    <FiFile className="source-file-icon" />
+                    {sourceFile}
                   </h4>
-                  <p className="result-filename">{result.filename}</p>
-                  {result.data && (
-                    <p className="result-stats">
-                      {Object.keys(result.data).length} categories found
-                    </p>
+                  {onSelectionChange && (
+                    <label className="source-select-all-label">
+                      <input
+                        type="checkbox"
+                        checked={allFileSelected}
+                        ref={input => {
+                          if (input) input.indeterminate = someFileSelected && !allFileSelected;
+                        }}
+                        onChange={() => handleSourceFileSelectAll(sourceFile)}
+                        className="source-select-all-checkbox"
+                        aria-label={`Select all files from ${sourceFile}`}
+                      />
+                      Select All ({fileResults.length})
+                    </label>
                   )}
                 </div>
-              </div>
+              )}
+            
+            <div className="results-list">
+              {fileResults.map((result) => {
+                const isDownloading = downloadingIds.has(result.id);
+                const error = errors.get(result.id);
+                const progress = downloadProgress.get(result.id);
 
-              <div className="result-actions">
-                <button
-                  className={`download-btn ${isDownloading ? 'downloading' : ''}`}
-                  onClick={() => handleDownload(result.id)}
-                  disabled={isDownloading}
-                >
-                  {isDownloading ? (
-                    <>
-                      <FiLoader className="download-spinner" />
-                      {progress !== undefined ? `${progress}%` : 'Downloading...'}
-                    </>
-                  ) : (
-                    <>
-                      <FiDownload className="download-icon" />
-                      Download
-                    </>
-                  )}
-                </button>
-              </div>
+                return (
+                  <div key={result.id} className="result-item">
+                    {onSelectionChange && (
+                      <div className="result-selection">
+                        <input
+                          type="checkbox"
+                          checked={result.selected || false}
+                          onChange={(e) => handleSelectionChange(result.id, e.target.checked)}
+                          className="result-checkbox"
+                          aria-label={`Select ${result.filename}`}
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="result-info">
+                      <div className="result-icon">
+                        {getFileTypeIcon(result.type)}
+                      </div>
+                      <div className="result-details">
+                        <h4 className="result-item-title">
+                          {formatFileType(result.type)}
+                        </h4>
+                        <p className="result-filename">{result.filename}</p>
+                        {result.data && (
+                          <p className="result-stats">
+                            {Object.keys(result.data).length} categories found
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-              {isDownloading && progress !== undefined && (
-                <div className="download-progress">
-                  <div className="download-progress-bar">
-                    <div
-                      className="download-progress-fill"
-                      style={{ width: `${progress}%` }}
-                    />
+                    <div className="result-actions">
+                      <button
+                        className={`download-btn ${isDownloading ? 'downloading' : ''}`}
+                        onClick={() => handleDownload(result.id)}
+                        disabled={isDownloading}
+                      >
+                        {isDownloading ? (
+                          <>
+                            <FiLoader className="download-spinner" />
+                            {progress !== undefined ? `${progress}%` : 'Downloading...'}
+                          </>
+                        ) : (
+                          <>
+                            <FiDownload className="download-icon" />
+                            Download
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {isDownloading && progress !== undefined && (
+                      <div className="download-progress">
+                        <div className="download-progress-bar">
+                          <div
+                            className="download-progress-fill"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="result-error">
+                        <FiX className="error-icon" />
+                        <span className="error-message">{error}</span>
+                        <button
+                          className="retry-btn"
+                          onClick={() => handleDownload(result.id)}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-
-              {error && (
-                <div className="result-error">
-                  <FiX className="error-icon" />
-                  <span className="error-message">{error}</span>
-                  <button
-                    className="retry-btn"
-                    onClick={() => handleDownload(result.id)}
-                  >
-                    Retry
-                  </button>
-                </div>
-              )}
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        )})})
       </div>
 
       <div className="results-summary">
         <FiBarChart className="summary-icon" />
         <span className="summary-text">
           {results.length} result{results.length > 1 ? 's' : ''} ready for download
+          {onBulkDownload && selectedResults.length > 0 && 
+            ` • ${selectedResults.length} selected`
+          }
         </span>
       </div>
     </div>
