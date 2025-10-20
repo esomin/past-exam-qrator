@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { FiFile, FiFolder, FiX } from 'react-icons/fi';
+import { FiFile, FiFolder } from 'react-icons/fi';
 import type { FileUploadProps, ErrorState } from '../types';
 import { useErrorHandler } from '../utils/errorHandler';
 import ErrorDisplay from './ErrorDisplay';
