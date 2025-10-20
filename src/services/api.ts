@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import type { ProcessFileRequest, ProcessFileResponse, ApiError, NetworkError, ValidationError } from '../types';
 
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = '/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
