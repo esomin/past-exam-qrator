@@ -20,8 +20,8 @@ A full-stack application for processing JSON files with multiple classification 
 ├── python/                # Flask backend
 │   ├── processors/        # Processing modules
 │   ├── app.py            # Flask application
-│   └── requirements.txt   # Python dependencies
-└── scripts/               # Setup scripts
+│   ├── requirements.txt   # Python dependencies
+│   └── setup-python.sh   # Python setup script
 ```
 
 ## Setup Instructions

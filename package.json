@@ -11,7 +11,7 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "setup-python": "./scripts/setup-python.sh",
+    "setup-python": "./python/setup-python.sh",
     "start-backend": "python/start-server.sh",
     "dev-full": "concurrently \"npm run dev\" \"npm run start-backend\""
   },
