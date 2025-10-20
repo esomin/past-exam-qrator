@@ -1,7 +1,19 @@
 import axios, { AxiosError } from 'axios';
 import type { ProcessFileRequest, ProcessFileResponse, ApiError, NetworkError, ValidationError } from '../types';
 
-const API_BASE_URL = '/api';
+// Environment-based API base URL configuration
+const getApiBaseUrl = (): string => {
+  // Check if we're in development mode
+  if (import.meta.env.DEV) {
+    // Development: direct connection to Python backend
+    return 'http://localhost:5001/api';
+  } else {
+    // Production: assume API is served from same origin
+    return '/api';
+  }
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -213,6 +225,195 @@ export const processFile = async (
       success: false,
       error: apiError,
     };
+  }
+};
+
+/**
+ * Upload and process multiple JSON files individually with selected classification options
+ */
+export const processMultipleFiles = async (
+  files: File[],
+  selectedOptions: string[]
+): Promise<ProcessFileResponse> => {
+  try {
+    // Validate files array
+    if (!Array.isArray(files) || files.length === 0) {
+      return {
+        success: false,
+        error: {
+          code: 'NO_FILES_PROVIDED',
+          message: 'Please provide at least one file to process',
+        },
+      };
+    }
+
+    // Client-side validation for all files
+    const allFileErrors: ValidationError[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const fileErrors = validateFile(files[i]);
+      if (fileErrors.length > 0) {
+        allFileErrors.push(...fileErrors.map(error => ({
+          ...error,
+          message: `File ${i + 1} (${files[i].name}): ${error.message}`
+        })));
+      }
+    }
+
+    if (allFileErrors.length > 0) {
+      return {
+        success: false,
+        error: {
+          code: allFileErrors[0].code,
+          message: allFileErrors[0].message,
+          details: allFileErrors.map(e => e.message).join('; ')
+        },
+      };
+    }
+
+    const optionErrors = validateProcessingOptions(selectedOptions);
+    if (optionErrors.length > 0) {
+      return {
+        success: false,
+        error: {
+          code: optionErrors[0].code,
+          message: optionErrors[0].message,
+          details: optionErrors.map(e => e.message).join('; ')
+        },
+      };
+    }
+
+    // Process each file individually
+    const allResults: any[] = [];
+    let totalProcessedItems = 0;
+    let totalOriginalQuestions = 0;
+    const combinedStats = {
+      original_questions: 0,
+      original_answers: 0,
+      result_questions: 0,
+      result_answers: 0,
+      duplicate_count: 0,
+      removed_duplicate_answers: 0
+    };
+
+    for (const file of files) {
+      try {
+        // Process individual file
+        const fileResult = await processFile(file, selectedOptions);
+        
+        if (fileResult.success && fileResult.results) {
+          // Add source filename to each result
+          const resultsWithSource = fileResult.results.map(result => ({
+            ...result,
+            sourceFilename: file.name
+          }));
+          allResults.push(...resultsWithSource);
+          
+          totalProcessedItems += fileResult.processed_items || 0;
+          totalOriginalQuestions += fileResult.original_questions || 0;
+          
+          // Combine statistics
+          if (fileResult.statistics) {
+            Object.keys(combinedStats).forEach(key => {
+              combinedStats[key as keyof typeof combinedStats] += 
+                fileResult.statistics![key as keyof typeof combinedStats] || 0;
+            });
+          }
+        } else if (fileResult.error) {
+          return {
+            success: false,
+            error: {
+              ...fileResult.error,
+              message: `Error processing ${file.name}: ${fileResult.error.message}`
+            }
+          };
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            code: 'FILE_PROCESSING_ERROR',
+            message: `Failed to process file: ${file.name}`,
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }
+        };
+      }
+    }
+
+    return {
+      success: true,
+      results: allResults,
+      processed_items: totalProcessedItems,
+      original_questions: totalOriginalQuestions,
+      statistics: combinedStats
+    };
+    
+  } catch (error) {
+    const apiError = handleApiError(error as AxiosError);
+    return {
+      success: false,
+      error: apiError,
+    };
+  }
+};
+
+/**
+ * Download multiple files as a ZIP archive
+ */
+export const downloadMultipleFiles = async (resultIds: string[], archiveName: string = 'processed_files.zip'): Promise<void> => {
+  try {
+    if (!resultIds || resultIds.length === 0) {
+      throw new Error('No files selected for download');
+    }
+
+    // Use retry mechanism for bulk download requests
+    const response = await retryRequest(
+      () => api.post('/download-multiple', { 
+        result_ids: resultIds,
+        archive_name: archiveName
+      }, {
+        responseType: 'blob',
+        timeout: 120000, // 2 minute timeout for bulk downloads
+      }),
+      2,
+      2000
+    );
+
+    // Validate response
+    if (!response.data || response.data.size === 0) {
+      throw new Error('Downloaded archive is empty or corrupted');
+    }
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'application/zip' });
+    const url = window.URL.createObjectURL(blob);
+    
+    try {
+      // Create temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = archiveName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+    } finally {
+      // Always cleanup the blob URL
+      window.URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    const apiError = handleApiError(error as AxiosError);
+    
+    // Provide more specific error messages for bulk downloads
+    let errorMessage = apiError.message;
+    if (apiError.code === 'NETWORK_ERROR') {
+      errorMessage = 'Bulk download failed due to network issues. Please check your connection and try again.';
+    } else if (apiError.code === 'FILE_NOT_FOUND') {
+      errorMessage = 'Some of the requested files are no longer available. They may have expired.';
+    }
+    
+    throw new Error(errorMessage);
   }
 };
 
