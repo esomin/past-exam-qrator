@@ -7,7 +7,7 @@ import ProgressIndicator from '../components/ProgressIndicator'
 import { processFile, processMultipleFiles, downloadFile, downloadMultipleFiles, downloadMarkdownFile, getServerStatus } from '../services/api'
 import { useErrorHandler } from '../utils/errorHandler'
 
-import type { ProcessingOption, ProcessingResult, ErrorState } from '../types'
+import type { ProcessingOption, ProcessingResult, ErrorState } from '../types/index'
 
 function FileProcessorPage() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
@@ -32,10 +32,12 @@ function FileProcessorPage() {
   const { handleError } = useErrorHandler()
 
   const processingOptions: ProcessingOption[] = [
+    // TODO: Re-implement category classification API and enable this option
     {
       id: 'category',
       label: 'Category Classification',
-      description: 'Group questions by their category fields'
+      description: 'Group questions by their category fields',
+      disabled: true // Temporarily disabled - needs API reimplementation
     },
     {
       id: 'institution',
@@ -133,24 +135,21 @@ function FileProcessorPage() {
       setProcessingProgress(100)
       setProcessingMessage('Processing complete!')
 
-      console.log('Processing response:', response)
-      console.log('Selected options:', selectedOptions)
-      console.log('Classification options:', classificationOptions)
-      console.log('Format options:', formatOptions)
-
       if (response.success && response.results) {
         let processedResults: ProcessingResult[] = []
 
-        // Handle JSON format results (always include JSON results)
-        const jsonResults = response.results.map(result => ({
-          id: result.download_id,
-          type: result.type,
-          filename: result.filename,
-          data: null,
-          sourceFilename: result.sourceFilename || undefined,
-          selected: false
-        }))
-        processedResults.push(...jsonResults)
+        // Handle JSON format results (only if JSON format is selected)
+        if (formatOptions.includes('json')) {
+          const jsonResults = response.results.map(result => ({
+            id: result.download_id,
+            type: result.type,
+            filename: result.filename,
+            data: null,
+            sourceFilename: result.sourceFilename || undefined,
+            selected: false
+          }))
+          processedResults.push(...jsonResults)
+        }
 
         // Handle Markdown format results
         if (formatOptions.includes('markdown')) {
@@ -166,6 +165,19 @@ function FileProcessorPage() {
             selected: false
           }))
           processedResults.push(...markdownResults)
+        }
+
+        // If no format options are selected, default to JSON
+        if (formatOptions.length === 0) {
+          const jsonResults = response.results.map(result => ({
+            id: result.download_id,
+            type: result.type,
+            filename: result.filename,
+            data: null,
+            sourceFilename: result.sourceFilename || undefined,
+            selected: false
+          }))
+          processedResults.push(...jsonResults)
         }
 
         setResults(processedResults)
@@ -257,7 +269,6 @@ function FileProcessorPage() {
       // Handle markdown files - fetch JSON data and convert
       if (result.filename.endsWith('.md') && (result as any).sourceId) {
         const sourceId = (result as any).sourceId
-        console.log('Downloading markdown file from backend, sourceId:', sourceId)
 
         // Determine exclude columns based on result type
         let excludeColumns: string[] = []
@@ -269,10 +280,8 @@ function FileProcessorPage() {
 
         // Download markdown file from backend
         await downloadMarkdownFile(sourceId, result.filename, excludeColumns)
-        console.log('Markdown download completed successfully')
       } else if (result.data && result.filename.endsWith('.md')) {
         // Handle markdown files with local data
-        console.log('Downloading markdown file with local data')
         const blob = new Blob([result.data], { type: 'text/markdown' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -284,7 +293,6 @@ function FileProcessorPage() {
         URL.revokeObjectURL(url)
       } else {
         // Handle JSON files from server
-        console.log('Downloading JSON file from server, resultId:', resultId)
         await downloadFile(resultId, result.filename)
       }
     } catch (err) {

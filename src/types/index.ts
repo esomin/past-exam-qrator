@@ -4,6 +4,7 @@ export interface ProcessingOption {
   id: string;
   label: string;
   description: string;
+  disabled?: boolean; // Optional property to disable specific options
 }
 
 export interface ProcessingResult {

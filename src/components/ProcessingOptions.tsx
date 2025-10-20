@@ -65,25 +65,35 @@ export default function ProcessingOptions({
           {options.map((option) => (
             <label 
               key={option.id} 
-              className={`option-item ${disabled || isProcessing ? 'disabled' : ''}`}
+              className={`option-item ${disabled || isProcessing || option.disabled ? 'disabled' : ''}`}
             >
               <input
                 type="checkbox"
                 checked={selectedClassifications.includes(option.id)}
                 onChange={(e) => handleClassificationChange(option.id, e.target.checked)}
-                disabled={disabled || isProcessing}
+                disabled={disabled || isProcessing || option.disabled}
                 className="option-checkbox"
               />
               <div className="option-content">
                 <span className="option-label">
                   {option.label}
+                  {option.disabled && (
+                    <span className="disabled-indicator" title="This option is temporarily disabled">
+                      (Disabled)
+                    </span>
+                  )}
                   {isProcessing && selectedClassifications.includes(option.id) && (
                     <span className="processing-indicator">
                       <FiLoader className="mini-spinner" />
                     </span>
                   )}
                 </span>
-                <span className="option-description">{option.description}</span>
+                <span className="option-description">
+                  {option.description}
+                  {option.disabled && (
+                    <span className="disabled-note"> - Currently unavailable</span>
+                  )}
+                </span>
               </div>
             </label>
           ))}

@@ -365,13 +365,9 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
       throw new Error('No files selected for download');
     }
 
-    console.log('Downloading multiple files:', { resultIds, archiveName });
-    console.log('API Base URL:', API_BASE_URL);
-
     // Use retry mechanism for bulk download requests
     const response = await retryRequest(
       () => {
-        console.log('Making request to:', `${API_BASE_URL}/download-multiple`);
         return api.post('/download-multiple', { 
           result_ids: resultIds,
           archive_name: archiveName
@@ -490,7 +486,6 @@ export const checkServerHealth = async (): Promise<boolean> => {
     await api.get('/health', { timeout: 5000 }); // 5 second timeout for health checks
     return true;
   } catch (error) {
-    console.warn('Server health check failed:', error);
     return false;
   }
 };
@@ -505,9 +500,6 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
       throw new Error('Download ID is required');
     }
 
-    console.log(`Fetching JSON data for download ID: ${downloadId}`);
-    console.log(`Request URL: ${API_BASE_URL}/data/${downloadId}`);
-
     // Use retry mechanism for data fetch requests
     const response = await retryRequest(
       () => api.get(`/data/${downloadId}`, {
@@ -521,18 +513,13 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
       1000
     );
 
-    console.log(`Successfully fetched data, status: ${response.status}`);
-    console.log(`Response headers:`, response.headers);
-
     // Validate response
     if (!response.data) {
       throw new Error('No data received from server');
     }
 
-    console.log(`Data type: ${typeof response.data}, size: ${JSON.stringify(response.data).length} chars`);
     return response.data;
   } catch (error) {
-    console.error('Error in fetchJsonData:', error);
     
     const apiError = handleApiError(error as AxiosError);
     
@@ -544,7 +531,6 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
       errorMessage = 'The requested data is no longer available. It may have expired.';
     }
     
-    console.error(`Final error message: ${errorMessage}`);
     throw new Error(errorMessage);
   }
 };

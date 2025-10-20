@@ -122,8 +122,15 @@ def create_markdown_table(items: List[Dict], exclude_columns: List[str] = None) 
     if not columns:
         return "No columns to display after filtering.\n"
     
-    # Sort columns for consistent output
-    columns.sort()
+    # Sort columns for consistent output, but put 'id' first if it exists
+    if 'id' in columns:
+        # Remove 'id' from the list and sort the rest
+        columns.remove('id')
+        columns.sort()
+        # Put 'id' at the beginning
+        columns = ['id'] + columns
+    else:
+        columns.sort()
     
     # Create table header
     header = "| " + " | ".join(columns) + " |"
