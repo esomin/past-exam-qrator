@@ -325,6 +325,30 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
     return result
 
 
+def classify_by_category(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """플래튼된 데이터를 category1별로 분류"""
+    category_groups = defaultdict(list)
+    
+    for item in data:
+        category1 = item.get('category1', 'Unknown')
+        category_groups[category1].append(item)
+    
+    # 각 카테고리별로 category2, institution, year, ID순 정렬
+    for category in category_groups:
+        category_groups[category].sort(key=lambda x: (
+            x.get('category2', ''),      # 1차 정렬: category2
+            x.get('institution', ''),    # 2차 정렬: institution
+            x.get('year', ''),           # 3차 정렬: year
+            x.get('id', 0)               # 4차 정렬: id
+        ))
+    
+    # 카테고리명순으로 정렬된 결과 생성
+    sorted_categories = sorted(category_groups.keys(), key=lambda x: x if x != 'Unknown' else 'ZZZ_Unknown')
+    result = {category: category_groups[category] for category in sorted_categories}
+    
+    return result
+
+
 def convert_input_to_answers(input_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """기존 호환성을 위한 래퍼 함수 - 플래튼된 데이터 반환"""
     flattened_data, _ = flatten_original_data(input_data)
@@ -438,19 +462,8 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         if 'year' in options:
             results_data['year'] = classify_by_year(flattened_data)
         
-        # 기존 카테고리 분류를 위한 답변 형태 변환 (필요시)
-        answers = flattened_data  # 기본적으로 플래튼된 데이터 사용
-        
-        # Create similarity processor for category classification if needed
-        similarity_processor = None
         if 'category' in options:
-            # Use temporary directory managed by resource manager
-            temp_dir = resource_manager.file_manager.create_temp_dir()
-            similarity_processor = SimilarityDeduplicator(
-                input_file=None,
-                output_dir=temp_dir,
-                threshold=0.8
-            )
+            results_data['category'] = classify_by_category(flattened_data)
         
         # 새로운 분류 결과를 API 형식으로 변환
         api_results = []
@@ -466,6 +479,8 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
                     result_filename = f"{base_filename}_기관별.json"
                 elif option == 'year':
                     result_filename = f"{base_filename}_연도별.json"
+                elif option == 'category':
+                    result_filename = f"{base_filename}_카테고리별.json"
                 else:
                     result_filename = f"{base_filename}_{option}.json"
                 
@@ -502,29 +517,6 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
                 app.stored_results[download_id] = result
                 
                 api_results.append(result.to_dict())
-        
-        # 기존 카테고리 분류 처리 (필요시)
-        if 'category' in options and similarity_processor:
-            try:
-                _, similar_groups = similarity_processor.process_similarity_from_data(answers)
-                
-                download_id = str(uuid.uuid4())
-                base_filename = os.path.splitext(filename)[0]
-                category_filename = f"{base_filename}_category.json"
-                
-                result = ClassificationResult(
-                    id=download_id,
-                    type='category',
-                    filename=category_filename,
-                    data=similar_groups,
-                    created_at=datetime.now()
-                )
-                
-                app.stored_results[download_id] = result
-                api_results.append(result.to_dict())
-                
-            except Exception as e:
-                app.logger.warning(f"Category classification failed: {str(e)}")
         
         results = api_results
         
