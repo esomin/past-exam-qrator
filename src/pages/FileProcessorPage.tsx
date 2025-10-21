@@ -472,29 +472,17 @@ function FileProcessorPage() {
                       <h3 id="stats-heading" className="stats-title">처리 결과 통계</h3>
                       <div className="stats-grid">
                         <div className="stat-item">
-                          <span className="stat-label">원본 문제 수:</span>
-                          <span className="stat-value">{statistics.original_questions.toLocaleString()}개</span>
-                        </div>
-                        <div className="stat-item">
                           <span className="stat-label">원본 선택지 수:</span>
                           <span className="stat-value">{statistics.original_answers.toLocaleString()}개</span>
-                        </div>
-                        <div className="stat-item">
-                          <span className="stat-label">결과 문제 수:</span>
-                          <span className="stat-value">{statistics.result_questions.toLocaleString()}개</span>
                         </div>
                         <div className="stat-item">
                           <span className="stat-label">결과 선택지 수:</span>
                           <span className="stat-value">{statistics.result_answers.toLocaleString()}개</span>
                         </div>
                         <div className="stat-item highlight">
-                          <span className="stat-label">제거된 동일 문제 수:</span>
-                          <span className="stat-value">{statistics.duplicate_count.toLocaleString()}개</span>
-                        </div>
-                        <div className="stat-item highlight">
                           <span className="stat-label">제거된 동일 선택지 수:</span>
                           <span className="stat-value">{statistics.removed_duplicate_answers.toLocaleString()}개</span>
-                        </div>
+                        </div> 
                       </div>
                     </div>
                   )}
