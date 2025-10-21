@@ -14,7 +14,7 @@ export const createMockProcessingOptions = (): ProcessingOption[] => [
   {
     id: 'category',
     label: 'Category Classification',
-    description: 'Group by question categories with similarity detection'
+    description: 'Group questions by their category1 field'
   },
   {
     id: 'institution',

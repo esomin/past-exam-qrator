@@ -326,20 +326,230 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
 
 
 def classify_by_category(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
-    """플래튼된 데이터를 category1별로 분류"""
+    """플래튼된 데이터를 category1별로 분류하고 중복 검출"""
+    import re
+    import math
+    from collections import Counter
+    
+    def preprocess_text(text: str) -> List[str]:
+        """텍스트 전처리 및 토큰화 (SimilarityDeduplicator 핵심 로직)"""
+        if not text:
+            return []
+        
+        # HTML 태그 제거
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # 숫자 정규화
+        text = re.sub(r'\d{4}년', 'YEAR년', text)
+        text = re.sub(r'\d+%', 'PERCENT', text)
+        text = re.sub(r'\d+번', 'NUMBER번', text)
+        text = re.sub(r'\d+\.', 'NUMBER.', text)
+        
+        # 특수문자 및 공백 정규화
+        text = re.sub(r'[^\w\s가-힣]', ' ', text)
+        text = re.sub(r'\s+', ' ', text)
+        
+        # 조사, 어미 간소화
+        text = re.sub(r'입니다', '이다', text)
+        text = re.sub(r'습니다', '다', text)
+        text = re.sub(r'에서', '에', text)
+        
+        # 토큰화 (공백 기준)
+        tokens = text.strip().split()
+        
+        # 길이가 1인 토큰 제거 (조사 등)
+        tokens = [token for token in tokens if len(token) > 1]
+        
+        return tokens
+    
+    def calculate_tf(tokens: List[str]) -> Dict[str, float]:
+        """단어 빈도(TF) 계산"""
+        if not tokens:
+            return {}
+        
+        tf_dict = Counter(tokens)
+        total_words = len(tokens)
+        
+        # 정규화
+        for word in tf_dict:
+            tf_dict[word] = tf_dict[word] / total_words
+        
+        return dict(tf_dict)
+    
+    def calculate_idf(documents: List[List[str]]) -> Dict[str, float]:
+        """역문서 빈도(IDF) 계산"""
+        if not documents:
+            return {}
+        
+        N = len(documents)
+        all_words = set(word for doc in documents for word in doc)
+        idf_dict = {}
+        
+        for word in all_words:
+            containing_docs = sum(1 for doc in documents if word in doc)
+            if containing_docs > 0:
+                idf_dict[word] = math.log(N / containing_docs)
+            else:
+                idf_dict[word] = 0
+        
+        return idf_dict
+    
+    def create_tfidf_vector(tf_dict: Dict[str, float], idf_dict: Dict[str, float], vocabulary: List[str]) -> List[float]:
+        """TF-IDF 벡터 생성"""
+        vector = []
+        for word in vocabulary:
+            tf = tf_dict.get(word, 0)
+            idf = idf_dict.get(word, 0)
+            vector.append(tf * idf)
+        return vector
+    
+    def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+        """두 벡터 간의 코사인 유사도 계산"""
+        if len(vec1) != len(vec2):
+            return 0.0
+        
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        magnitude1 = math.sqrt(sum(a * a for a in vec1))
+        magnitude2 = math.sqrt(sum(b * b for b in vec2))
+        
+        if magnitude1 == 0 or magnitude2 == 0:
+            return 0.0
+        
+        return dot_product / (magnitude1 * magnitude2)
+    
+    def should_skip_comparison(answer1: str, answer2: str, tokens1: List[str], tokens2: List[str]) -> bool:
+        """비교를 건너뛸지 결정하는 사전 필터링"""
+        # 길이 차이가 3배 이상이면 건너뛰기
+        len1, len2 = len(answer1), len(answer2)
+        if len1 == 0 or len2 == 0:
+            return True
+        
+        ratio = max(len1, len2) / min(len1, len2)
+        if ratio > 3.0:
+            return True
+        
+        # 토큰 수 차이가 너무 크면 건너뛰기
+        token_len1, token_len2 = len(tokens1), len(tokens2)
+        if token_len1 == 0 or token_len2 == 0:
+            return True
+        
+        token_ratio = max(token_len1, token_len2) / min(token_len1, token_len2)
+        if token_ratio > 2.5:
+            return True
+        
+        # 공통 토큰이 30% 미만이면 건너뛰기
+        common_tokens = set(tokens1) & set(tokens2)
+        total_unique_tokens = len(set(tokens1) | set(tokens2))
+        if total_unique_tokens > 0:
+            common_ratio = len(common_tokens) / total_unique_tokens
+            if common_ratio < 0.3:
+                return True
+        
+        return False
+    
+    # 카테고리별로 그룹화
     category_groups = defaultdict(list)
     
     for item in data:
         category1 = item.get('category1', 'Unknown')
         category_groups[category1].append(item)
     
-    # 각 카테고리별로 category2, institution, year, ID순 정렬
+    # 각 카테고리 내에서 중복 검출 및 처리
+    threshold = 0.8  # 유사도 임계값
+    
+    for category, items in category_groups.items():
+        if len(items) <= 1:
+            # 항목이 1개 이하면 중복 검출 불필요
+            for item in items:
+                item['isDupe'] = False
+            continue
+        
+        # 텍스트 전처리
+        answer_texts = [item.get('answer', '') for item in items]
+        processed_texts = [preprocess_text(text) for text in answer_texts]
+        
+        # 빈 텍스트 필터링
+        valid_indices = [i for i, tokens in enumerate(processed_texts) if tokens]
+        
+        if len(valid_indices) <= 1:
+            # 유효한 텍스트가 1개 이하면 모두 중복 아님
+            for item in items:
+                item['isDupe'] = False
+            continue
+        
+        # TF-IDF 계산
+        valid_processed = [processed_texts[i] for i in valid_indices]
+        idf_dict = calculate_idf(valid_processed)
+        vocabulary = sorted(idf_dict.keys())
+        
+        # 각 답변의 TF-IDF 벡터 생성
+        tfidf_vectors = []
+        for tokens in valid_processed:
+            tf_dict = calculate_tf(tokens)
+            vector = create_tfidf_vector(tf_dict, idf_dict, vocabulary)
+            tfidf_vectors.append(vector)
+        
+        # 유사도 계산 및 중복 마킹
+        processed_indices = set()
+        
+        for i in range(len(valid_indices)):
+            original_idx = valid_indices[i]
+            
+            if i in processed_indices:
+                continue
+            
+            # 현재 항목을 대표로 설정
+            items[original_idx]['isDupe'] = False
+            current_group = [i]
+            similarities = []
+            
+            for j in range(i + 1, len(valid_indices)):
+                if j in processed_indices:
+                    continue
+                
+                j_original_idx = valid_indices[j]
+                
+                # 사전 필터링
+                if should_skip_comparison(
+                    answer_texts[original_idx], 
+                    answer_texts[j_original_idx],
+                    processed_texts[original_idx],
+                    processed_texts[j_original_idx]
+                ):
+                    continue
+                
+                similarity = cosine_similarity(tfidf_vectors[i], tfidf_vectors[j])
+                
+                if similarity >= threshold:
+                    current_group.append(j)
+                    similarities.append(similarity)
+                    processed_indices.add(j)
+                    
+                    # 중복으로 마킹하고 추가 정보 설정
+                    items[j_original_idx]['isDupe'] = True
+                    items[j_original_idx]['duplicateOf'] = items[original_idx].get('id')
+                    items[j_original_idx]['similarity'] = similarity
+            
+            # 대표 항목에 중복 정보 추가
+            if len(current_group) > 1:
+                items[original_idx]['duplicateCount'] = len(current_group) - 1
+                items[original_idx]['avgSimilarity'] = sum(similarities) / len(similarities) if similarities else 0
+            
+            processed_indices.add(i)
+        
+        # 처리되지 않은 항목들 (빈 텍스트 등)
+        for i, item in enumerate(items):
+            if 'isDupe' not in item:
+                item['isDupe'] = False
+    
+    # 각 카테고리별로 정렬 (중복이 아닌 것 먼저, 그 다음 중복인 것)
     for category in category_groups:
         category_groups[category].sort(key=lambda x: (
-            x.get('category2', ''),      # 1차 정렬: category2
-            x.get('institution', ''),    # 2차 정렬: institution
-            x.get('year', ''),           # 3차 정렬: year
-            x.get('id', 0)               # 4차 정렬: id
+            x.get('isDupe', False),      # 중복이 아닌 것 먼저
+            x.get('category2', ''),      # category2
+            x.get('institution', ''),    # institution
+            x.get('year', ''),           # year
+            x.get('id', 0)               # id
         ))
     
     # 카테고리명순으로 정렬된 결과 생성

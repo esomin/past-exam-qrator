@@ -32,12 +32,11 @@ function FileProcessorPage() {
   const { handleError } = useErrorHandler()
 
   const processingOptions: ProcessingOption[] = [
-    // TODO: Re-implement category classification API and enable this option
     {
       id: 'category',
       label: 'Category Classification',
-      description: 'Group questions by their category fields',
-      disabled: true // Temporarily disabled - needs API reimplementation
+      description: 'Group questions by their category1 field',
+      disabled: false // Re-enabled with new simple classification
     },
     {
       id: 'institution',
