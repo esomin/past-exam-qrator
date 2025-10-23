@@ -470,7 +470,9 @@ def classify_by_category(data: List[Dict[str, Any]]) -> tuple[Dict[str, List[Dic
         if len(items) <= 1:
             # 항목이 1개 이하면 중복 검출 불필요
             for item in items:
-                item['isDupe'] = False
+                item['isUnique'] = True
+                item['similarityCount'] = None
+                item['similarity'] = None
             continue
         
         # 텍스트 전처리
@@ -483,7 +485,9 @@ def classify_by_category(data: List[Dict[str, Any]]) -> tuple[Dict[str, List[Dic
         if len(valid_indices) <= 1:
             # 유효한 텍스트가 1개 이하면 모두 중복 아님
             for item in items:
-                item['isDupe'] = False
+                item['isUnique'] = True
+                item['similarityCount'] = None
+                item['similarity'] = None
             continue
         
         # TF-IDF 계산
@@ -724,11 +728,25 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         category_stats = None
         if 'category' in options:
             results_data['category'], category_stats = classify_by_category(flattened_data)
+            
+            # 중복 제거된 결과 생성 (isUnique: true인 항목만)
+            category_deduplicated = {}
+            for category_name, items in results_data['category'].items():
+                unique_items = [item for item in items if item.get('isUnique') == True]
+                if unique_items:
+                    category_deduplicated[category_name] = unique_items
+            
+            results_data['category_deduplicated'] = category_deduplicated
         
         # 새로운 분류 결과를 API 형식으로 변환
         api_results = []
         
-        for option in options:
+        # 처리할 결과 타입 목록 (원본 옵션 + 추가 생성된 결과)
+        result_types = list(options)
+        if 'category' in options and 'category_deduplicated' in results_data:
+            result_types.append('category_deduplicated')
+        
+        for option in result_types:
             if option in results_data:
                 # 각 분류 결과를 저장하고 다운로드 ID 생성
                 download_id = str(uuid.uuid4())
@@ -741,6 +759,8 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
                     result_filename = f"{base_filename}_연도별.json"
                 elif option == 'category':
                     result_filename = f"{base_filename}_카테고리별.json"
+                elif option == 'category_deduplicated':
+                    result_filename = f"{base_filename}_카테고리별_중복제거.json"
                 else:
                     result_filename = f"{base_filename}_{option}.json"
                 
@@ -1087,8 +1107,10 @@ def download_multiple_files():
                                 exclude_columns = ['year']
                             elif 'institution' in original_result.type:
                                 exclude_columns = ['institution']
-                            elif 'category' in original_result.type:
+                            elif original_result.type == 'category':
                                 exclude_columns = ['category1']
+                            elif original_result.type == 'category_deduplicated':
+                                exclude_columns = ['category1', 'isUnique', 'similarity']
                             
                             # Convert to markdown
                             markdown_content = convert_json_to_markdown(original_result.data, exclude_columns)
@@ -1196,6 +1218,8 @@ def convert_to_markdown(download_id: str):
         # For category classification, automatically exclude category columns
         if result.type == 'category':
             exclude_columns.extend(['category1', 'category2'])
+        elif result.type == 'category_deduplicated':
+            exclude_columns.extend(['category1', 'isUnique', 'similarity', 'similarityCount'])
         
         # Convert to markdown
         markdown_content = convert_json_to_markdown(result.data, exclude_columns)

@@ -504,13 +504,13 @@ function FileProcessorPage() {
                     <div className="processing-statistics" role="region" aria-labelledby="category-stats-heading">
                       <h3 id="category-stats-heading" className="stats-title">Category 중복 제거 통계</h3>
                       <div className="stats-grid">
-                        <div className="stat-item highlight">
-                          <span className="stat-label">제거된 중복 선택지 수:</span>
-                          <span className="stat-value">{categoryStatistics.duplicate_items.toLocaleString()}개 ({categoryStatistics.duplicate_percentage}%)</span>
-                        </div>
                         <div className="stat-item">
                           <span className="stat-label">중복제거 최종 선택지 수:</span>
                           <span className="stat-value">{categoryStatistics.unique_items.toLocaleString()}개 ({categoryStatistics.unique_percentage}%)</span>
+                        </div>
+                        <div className="stat-item highlight">
+                          <span className="stat-label">제거된 중복 선택지 수:</span>
+                          <span className="stat-value">{categoryStatistics.duplicate_items.toLocaleString()}개 ({categoryStatistics.duplicate_percentage}%)</span>
                         </div>
                       </div>
                     </div>

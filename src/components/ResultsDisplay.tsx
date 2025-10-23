@@ -155,6 +155,8 @@ export default function ResultsDisplay({
     switch (type.toLowerCase()) {
       case 'category':
         return <FiFolder className="result-type-icon" />;
+      case 'category_deduplicated':
+        return <FiFolder className="result-type-icon" />;
       case 'institution':
         return <FiHome className="result-type-icon" />;
       case 'year':
@@ -165,7 +167,12 @@ export default function ResultsDisplay({
   };
 
   const formatFileType = (type: string) => {
-    return type.charAt(0).toUpperCase() + type.slice(1) + ' Classification';
+    switch (type.toLowerCase()) {
+      case 'category_deduplicated':
+        return 'Category Classification (Deduplicated)';
+      default:
+        return type.charAt(0).toUpperCase() + type.slice(1) + ' Classification';
+    }
   };
 
   if (results.length === 0) {

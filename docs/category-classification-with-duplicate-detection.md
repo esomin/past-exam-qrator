@@ -130,9 +130,21 @@ category1 기준으로 데이터를 그룹화
     {
       "type": "category",
       "filename": "questions_카테고리별.json",
-      "download_id": "uuid"
+      "download_id": "uuid1"
+    },
+    {
+      "type": "category_deduplicated",
+      "filename": "questions_카테고리별_중복제거.json",
+      "download_id": "uuid2"
     }
-  ]
+  ],
+  "category_statistics": {
+    "total_items": 2000,
+    "duplicate_items": 245,
+    "unique_items": 1755,
+    "duplicate_percentage": 12.3,
+    "unique_percentage": 87.7
+  }
 }
 ```
 
@@ -212,8 +224,8 @@ interface CategoryStatistics {
 ```
 
 **표시 예시:**
-- "제거된 중복 선택지 수: 245개 (12.3%)"
 - "중복제거 최종 선택지 수: 1,755개 (87.7%)"
+- "제거된 중복 선택지 수: 245개 (12.3%)"
 
 ### 4. 필터링 기능
 - 중복 항목 숨기기/보이기 토글
@@ -241,11 +253,17 @@ interface CategoryStatistics {
 
 ### 카테고리 분류 결과의 마크다운 변환 시:
 
+#### 일반 카테고리 분류 (`category`)
 1. **제외되는 컬럼**: `category1`, `category2` 자동 제외
 2. **`isUnique` 컬럼 특별 처리**:
    - `true` → "O" 표시
    - `false` → 빈값 표시
 3. **정렬 순서 유지**: similarityCount → category2 → id 순서 그대로 표시
+
+#### 중복 제거된 카테고리 분류 (`category_deduplicated`)
+1. **제외되는 컬럼**: `category1`, `isUnique`, `similarity`, `similarityCount` 자동 제외
+2. **포함되는 컬럼**: `category2`는 유지 (세부 분류 정보 제공)
+3. **데이터**: `isUnique: true`인 항목만 포함 (대표 항목 + 독립 항목)
 
 ## 기술적 세부사항
 
