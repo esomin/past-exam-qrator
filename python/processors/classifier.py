@@ -44,7 +44,7 @@ class ClassificationEngine:
         
         Args:
             data: List of answer items
-            similarity_processor: SimilarityDeduplicator instance for processing
+            similarity_processor: Deprecated - no longer used
             
         Returns:
             Array of answer objects with similarity information
@@ -136,7 +136,7 @@ class ClassificationEngine:
         Args:
             data: List of answer items with enhanced fields
             options: List of classification types ['category', 'institution', 'year']
-            similarity_processor: Optional SimilarityDeduplicator for category processing
+            similarity_processor: Deprecated - no longer used
             
         Returns:
             List of ClassificationResult objects

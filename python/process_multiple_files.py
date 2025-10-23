@@ -14,7 +14,7 @@ from collections import defaultdict
 from flask import request, jsonify
 from dataclasses import dataclass
 
-from remove_similarity_duplicates import SimilarityDeduplicator
+# from remove_similarity_duplicates import SimilarityDeduplicator  # 더 이상 사용하지 않음
 from optimize_file_cleanup import ResourceManager
 
 

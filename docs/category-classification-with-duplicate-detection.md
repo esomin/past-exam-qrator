@@ -6,10 +6,11 @@
 
 ## 주요 변경사항
 
-### 1. 기존 복잡한 SimilarityDeduplicator 제거
+### 1. SimilarityDeduplicator 완전 제거 및 통합
+- `remove_similarity_duplicates.py` 파일 완전 삭제
 - 임시 디렉토리 생성 및 파일 저장 로직 제거
 - 로깅 및 통계 출력 등 부수적 기능 제거
-- 핵심 중복 검출 알고리즘만 추출하여 통합
+- 핵심 중복 검출 알고리즘을 `classify_by_category()` 함수에 직접 통합
 
 ### 2. `classify_by_category()` 함수 개선
 - category1 기준 그룹화 + 각 그룹 내 중복 검출
@@ -18,31 +19,39 @@
 
 ## 추가된 데이터 속성
 
-### 모든 항목에 추가되는 기본 속성
+### 1. 독립적인 항목 (중복 그룹 없음)
+
+중복 그룹이 없는 독립적인 항목
 
 ```json
 {
-  "isDupe": false  // 중복 여부 (true/false)
+  "isUnique": true,           // 유일성 여부 (항상 true)
+  "similarityCount": null,    // 중복 그룹 없음 (null)
+  "similarity": null          // 유사도 없음 (null)
 }
 ```
 
-### 대표 항목 (`isDupe: false`)의 추가 속성
+### 2. 중복 그룹 내 대표 항목
+
+중복 그룹 내에서 선정된 대표 항목 (가장 긴 답변)
 
 ```json
 {
-  "isDupe": false,
-  "duplicateCount": 3,        // 중복된 항목 개수 (자신 제외)
-  "avgSimilarity": 0.857      // 중복 그룹 내 평균 유사도
+  "isUnique": true,           // 유일성 여부 (true - 대표 항목)
+  "similarityCount": 3,       // 대표항목 포함 전체 중복 개수
+  "similarity": 1.0000        // 자기 자신과의 유사도 (1.0000)
 }
 ```
 
-### 중복 항목 (`isDupe: true`)의 추가 속성
+### 3. 중복 그룹 내 중복 항목
+
+중복 그룹 내의 중복된 항목
 
 ```json
 {
-  "isDupe": true,
-  "duplicateOf": 12345,       // 대표 항목의 ID
-  "similarity": 0.892         // 대표 항목과의 유사도
+  "isUnique": false,          // 유일성 여부 (false - 중복 항목)
+  "similarityCount": 3,       // 대표항목 포함 전체 중복 개수
+  "similarity": 0.8924        // 대표 항목과의 유사도 (소숫점 넷째자리)
 }
 ```
 
@@ -69,6 +78,11 @@
 - 토큰 수 차이가 2.5배 이상인 경우 비교 제외
 - 공통 토큰 비율이 30% 미만인 경우 비교 제외
 
+### 5. 대표 항목 선정 기준
+- **기준**: 중복 그룹 내에서 **가장 긴 답변**을 대표로 선정
+- **이유**: 긴 답변이 더 상세하고 완전한 정보를 포함할 가능성이 높음
+- **측정**: `answer` 필드의 문자열 길이 기준
+
 ## 처리 과정
 
 ### 1. 카테고리별 그룹화
@@ -92,11 +106,9 @@ category1 기준으로 데이터를 그룹화
 ### 3. 정렬 및 결과 생성
 ```
 정렬 순서:
-1. isDupe (중복이 아닌 것 먼저)
-2. category2
-3. institution
-4. year
-5. id
+1. similarityCount (중복 그룹이 있는 것 먼저, 내림차순)
+2. category2 (오름차순)
+3. id (오름차순)
 ```
 
 ## 사용 예시
@@ -131,12 +143,12 @@ category1 기준으로 데이터를 그룹화
     {
       "id": 1001,
       "question": "다음 중 올바른 것은?",
-      "answer": "정답은 A입니다.",
+      "answer": "정답은 A입니다. 이는 대수학의 기본 원리에 따른 것입니다.",
       "category1": "수학",
       "category2": "대수",
-      "isDupe": false,
-      "duplicateCount": 2,
-      "avgSimilarity": 0.845
+      "isUnique": true,
+      "similarityCount": 2,
+      "similarity": 1.0000
     },
     {
       "id": 1002,
@@ -144,9 +156,19 @@ category1 기준으로 데이터를 그룹화
       "answer": "답은 A입니다.",
       "category1": "수학",
       "category2": "대수",
-      "isDupe": true,
-      "duplicateOf": 1001,
-      "similarity": 0.892
+      "isUnique": false,
+      "similarityCount": 2,
+      "similarity": 0.8924
+    },
+    {
+      "id": 1003,
+      "question": "독립적인 문제입니다.",
+      "answer": "이것은 유일한 답변입니다.",
+      "category1": "수학",
+      "category2": "기하",
+      "isUnique": true,
+      "similarityCount": null,
+      "similarity": null
     }
   ]
 }
@@ -174,9 +196,26 @@ category1 기준으로 데이터를 그룹화
 
 ### 2. 결과 표시
 - `ResultsDisplay.tsx`에서 중복 정보 표시 가능
-- `isDupe`, `duplicateCount`, `similarity` 등 활용
+- `isUnique`, `similarityCount`, `similarity` 등 활용
 
-### 3. 필터링 기능
+### 3. 통계 정보 표시
+카테고리 분류 선택 시 추가 통계 정보가 표시됩니다:
+
+```typescript
+interface CategoryStatistics {
+  total_items: number;           // 전체 항목 수
+  duplicate_items: number;       // 중복 항목 수
+  unique_items: number;          // 유일 항목 수 (대표 항목 + 독립 항목)
+  duplicate_percentage: number;  // 중복 비율 (%)
+  unique_percentage: number;     // 유일 비율 (%)
+}
+```
+
+**표시 예시:**
+- "제거된 중복 선택지 수: 245개 (12.3%)"
+- "중복제거 최종 선택지 수: 1,755개 (87.7%)"
+
+### 4. 필터링 기능
 - 중복 항목 숨기기/보이기 토글
 - 대표 항목만 표시 옵션
 
@@ -197,6 +236,16 @@ category1 기준으로 데이터를 그룹화
 ### 4. 시각화 기능
 - 중복 그룹 시각화
 - 유사도 분포 차트
+
+## 마크다운 변환 특별 처리
+
+### 카테고리 분류 결과의 마크다운 변환 시:
+
+1. **제외되는 컬럼**: `category1`, `category2` 자동 제외
+2. **`isUnique` 컬럼 특별 처리**:
+   - `true` → "O" 표시
+   - `false` → 빈값 표시
+3. **정렬 순서 유지**: similarityCount → category2 → id 순서 그대로 표시
 
 ## 기술적 세부사항
 

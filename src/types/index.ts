@@ -63,10 +63,19 @@ export interface ProcessingStatistics {
   removed_duplicate_answers: number;
 }
 
+export interface CategoryStatistics {
+  total_items: number;
+  duplicate_items: number;
+  unique_items: number;
+  duplicate_percentage: number;
+  unique_percentage: number;
+}
+
 export interface ProcessFileResponse {
   success: boolean;
   results?: ProcessingResultInfo[];
   statistics?: ProcessingStatistics;
+  category_statistics?: CategoryStatistics;
   processed_items?: number;
   original_questions?: number;
   error?: ApiError;

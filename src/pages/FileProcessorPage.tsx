@@ -7,7 +7,7 @@ import ProgressIndicator from '../components/ProgressIndicator'
 import { processFile, processMultipleFiles, downloadFile, downloadMultipleFiles, downloadMarkdownFile, getServerStatus } from '../services/api'
 import { useErrorHandler } from '../utils/errorHandler'
 
-import type { ProcessingOption, ProcessingResult, ErrorState } from '../types/index'
+import type { ProcessingOption, ProcessingResult, ErrorState, CategoryStatistics } from '../types/index'
 
 function FileProcessorPage() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
@@ -27,6 +27,14 @@ function FileProcessorPage() {
     result_answers: number
     duplicate_count: number
     removed_duplicate_answers: number
+  } | null>(null)
+  
+  const [categoryStatistics, setCategoryStatistics] = useState<{
+    total_items: number
+    duplicate_items: number
+    unique_items: number
+    duplicate_percentage: number
+    unique_percentage: number
   } | null>(null)
 
   const { handleError } = useErrorHandler()
@@ -78,6 +86,7 @@ function FileProcessorPage() {
     setErrors([])
     setResults([])
     setStatistics(null)
+    setCategoryStatistics(null)
   }, [])
 
   const handleOptionsChange = useCallback((options: string[]) => {
@@ -184,6 +193,11 @@ function FileProcessorPage() {
         // 통계 정보 설정
         if (response.statistics) {
           setStatistics(response.statistics)
+        }
+        
+        // 카테고리 통계 정보 설정
+        if (response.category_statistics) {
+          setCategoryStatistics(response.category_statistics)
         }
       } else if (response.error) {
         const errorState = handleError(
@@ -482,6 +496,22 @@ function FileProcessorPage() {
                           <span className="stat-label">제거된 동일 선택지 수:</span>
                           <span className="stat-value">{statistics.removed_duplicate_answers.toLocaleString()}개</span>
                         </div> 
+                      </div>
+                    </div>
+                  )}
+                  
+                  {categoryStatistics && (
+                    <div className="processing-statistics" role="region" aria-labelledby="category-stats-heading">
+                      <h3 id="category-stats-heading" className="stats-title">Category 중복 제거 통계</h3>
+                      <div className="stats-grid">
+                        <div className="stat-item highlight">
+                          <span className="stat-label">제거된 중복 선택지 수:</span>
+                          <span className="stat-value">{categoryStatistics.duplicate_items.toLocaleString()}개 ({categoryStatistics.duplicate_percentage}%)</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">중복제거 최종 선택지 수:</span>
+                          <span className="stat-value">{categoryStatistics.unique_items.toLocaleString()}개 ({categoryStatistics.unique_percentage}%)</span>
+                        </div>
                       </div>
                     </div>
                   )}
