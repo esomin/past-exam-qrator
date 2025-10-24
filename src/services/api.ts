@@ -162,7 +162,8 @@ const fileToBase64 = (file: File): Promise<string> => {
  */
 export const processFile = async (
   file: File,
-  selectedOptions: string[]
+  selectedOptions: string[],
+  similarityThreshold: number = 0.8
 ): Promise<ProcessFileResponse> => {
   try {
     // Client-side validation
@@ -209,6 +210,7 @@ export const processFile = async (
       file_data: fileData,
       filename: file.name,
       options: selectedOptions,
+      similarity_threshold: similarityThreshold,
     };
 
     // Use retry mechanism for network requests
@@ -233,7 +235,8 @@ export const processFile = async (
  */
 export const processMultipleFiles = async (
   files: File[],
-  selectedOptions: string[]
+  selectedOptions: string[],
+  similarityThreshold: number = 0.8
 ): Promise<ProcessFileResponse> => {
   try {
     // Validate files array
@@ -298,7 +301,7 @@ export const processMultipleFiles = async (
     for (const file of files) {
       try {
         // Process individual file
-        const fileResult = await processFile(file, selectedOptions);
+        const fileResult = await processFile(file, selectedOptions, similarityThreshold);
         
         if (fileResult.success && fileResult.results) {
           // Add source filename to each result

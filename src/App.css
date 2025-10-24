@@ -2975,3 +2975,454 @@ ssing Statistics Styles */
     align-self: flex-end;
   }
 }
+
+/* Similarity Threshold Section Styles */
+.similarity-threshold-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+  border: 2px solid #e0e7ff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.1);
+}
+
+.threshold-title {
+  margin: 0 0 1rem 0;
+  color: #374151;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.threshold-title::before {
+  content: '🎯';
+  font-size: 1.2rem;
+}
+
+.threshold-control {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.threshold-input-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.threshold-label {
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.threshold-value-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.threshold-number-input {
+  width: 70px;
+  padding: 0.375rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.threshold-number-input::-webkit-outer-spin-button,
+.threshold-number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.threshold-number-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.threshold-number-input:focus {
+  background: white;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.threshold-number-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.threshold-unit {
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.threshold-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right,
+      #3b82f6 0%,
+      #1d4ed8 50%,
+      #1e40af 100%);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.threshold-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+}
+
+.threshold-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+}
+
+.threshold-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+}
+
+.threshold-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+}
+
+.threshold-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.threshold-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  background: #9ca3af;
+  box-shadow: none;
+}
+
+.threshold-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  background: #9ca3af;
+  box-shadow: none;
+}
+
+.threshold-marks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding: 0 12px;
+}
+
+.threshold-mark {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+  position: relative;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  backdrop-filter: blur(10px);
+}
+
+.threshold-mark::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 8px;
+  background: #9ca3af;
+  border-radius: 1px;
+}
+
+.threshold-description {
+  margin: 1rem 0 0 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  border-left: 4px solid #667eea;
+  backdrop-filter: blur(10px);
+}
+
+/* Processing Statistics Styles */
+.processing-statistics {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 2px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(34, 197, 94, 0.1);
+}
+
+.stats-title {
+  margin: 0 0 1rem 0;
+  color: #166534;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stats-title::before {
+  content: '📊';
+  font-size: 1.2rem;
+}
+
+.stats-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border-left: 4px solid #22c55e;
+  backdrop-filter: blur(10px);
+}
+
+.stat-item.highlight {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-left-color: #f59e0b;
+}
+
+.stat-label {
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.stat-value {
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Responsive Design for Threshold Section */
+@media (max-width: 768px) {
+  .similarity-threshold-section {
+    padding: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .threshold-title {
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .threshold-input-group {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .threshold-label {
+    font-size: 0.9rem;
+  }
+
+  .threshold-value-controls {
+    justify-content: center;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .threshold-number-input {
+    width: 60px;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.375rem;
+  }
+
+  .threshold-slider {
+    height: 6px;
+  }
+
+  .threshold-slider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .threshold-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .threshold-marks {
+    padding: 0 10px;
+  }
+
+  .threshold-mark {
+    font-size: 0.75rem;
+  }
+
+  .threshold-description {
+    font-size: 0.85rem;
+    padding: 0.75rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-item {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+  }
+
+  .stat-value {
+    font-size: 0.9rem;
+  }
+}
+
+/* Dark mode support for threshold section */
+@media (prefers-color-scheme: dark) {
+  .similarity-threshold-section {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-color: #475569;
+  }
+
+  .threshold-title {
+    color: #f1f5f9;
+  }
+
+  .threshold-label {
+    color: #f1f5f9;
+  }
+
+  .threshold-number-input {
+    background: rgba(15, 23, 42, 0.9);
+    color: #f1f5f9;
+  }
+
+  .threshold-number-input:focus {
+    background: #1e293b;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.5);
+  }
+
+  .threshold-unit {
+    color: #f1f5f9;
+  }
+
+  .threshold-mark {
+    background: rgba(15, 23, 42, 0.8);
+    color: #cbd5e1;
+  }
+
+  .threshold-description {
+    background: rgba(15, 23, 42, 0.8);
+    color: #cbd5e1;
+    border-left-color: #667eea;
+  }
+
+  .processing-statistics {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+    border-color: #047857;
+  }
+
+  .stats-title {
+    color: #a7f3d0;
+  }
+
+  .stat-item {
+    background: rgba(15, 23, 42, 0.8);
+    border-left-color: #10b981;
+  }
+
+  .stat-item.highlight {
+    background: linear-gradient(135deg, #451a03 0%, #78350f 100%);
+    border-left-color: #f59e0b;
+  }
+
+  .stat-label {
+    color: #cbd5e1;
+  }
+
+  .stat-value {
+    color: #f1f5f9;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .similarity-threshold-section {
+    border: 3px solid #000;
+    background: #fff;
+  }
+
+  .threshold-slider {
+    background: #000;
+  }
+
+  .threshold-slider::-webkit-slider-thumb {
+    background: #000;
+    border: 2px solid #fff;
+  }
+
+  .threshold-slider::-moz-range-thumb {
+    background: #000;
+    border: 2px solid #fff;
+  }
+
+  .processing-statistics {
+    border: 3px solid #000;
+    background: #fff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+
+  .threshold-slider::-webkit-slider-thumb,
+  .threshold-slider::-moz-range-thumb {
+    transition: none;
+  }
+
+  .threshold-slider::-webkit-slider-thumb:hover,
+  .threshold-slider::-moz-range-thumb:hover {
+    transform: none;
+  }
+}

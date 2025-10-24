@@ -36,6 +36,7 @@ function FileProcessorPage() {
     duplicate_percentage: number
     unique_percentage: number
   } | null>(null)
+  const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.8)
 
   const { handleError } = useErrorHandler()
 
@@ -137,8 +138,8 @@ function FileProcessorPage() {
 
       // Process with classification options only
       const response = uploadedFiles.length === 1
-        ? await processFile(uploadedFiles[0], classificationOptions)
-        : await processMultipleFiles(uploadedFiles, classificationOptions)
+        ? await processFile(uploadedFiles[0], classificationOptions, similarityThreshold)
+        : await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold)
 
       setProcessingProgress(100)
       setProcessingMessage('Processing complete!')
@@ -425,6 +426,81 @@ function FileProcessorPage() {
                 disabled={!serverAvailable}
                 isProcessing={isProcessing}
               />
+              
+              {selectedOptions.includes('category') && (
+                <div className="similarity-threshold-section">
+                  <h3 className="threshold-title">유사도 임계값 설정</h3>
+                  <div className="threshold-control">
+                    <div className="threshold-input-group">
+                      <label htmlFor="similarity-threshold" className="threshold-label">
+                        유사도 임계값
+                      </label>
+                      <div className="threshold-value-controls">
+                        <input
+                          id="similarity-number"
+                          type="number"
+                          min="50"
+                          max="95"
+                          step="1"
+                          value={Math.round(similarityThreshold * 100)}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
+                            if (inputValue === '') {
+                              return; // 빈 값일 때는 아무것도 하지 않음
+                            }
+                            const value = parseInt(inputValue);
+                            if (!isNaN(value) && value >= 50 && value <= 95) {
+                              setSimilarityThreshold(value / 100);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const inputValue = e.target.value;
+                            if (inputValue === '') {
+                              setSimilarityThreshold(0.8); // 빈 값이면 기본값으로
+                              return;
+                            }
+                            const value = parseInt(inputValue);
+                            if (isNaN(value) || value < 50) {
+                              setSimilarityThreshold(0.5);
+                            } else if (value > 95) {
+                              setSimilarityThreshold(0.95);
+                            }
+                          }}
+                          className="threshold-number-input"
+                          disabled={isProcessing}
+                        />
+                        <span className="threshold-unit">%</span>
+                      </div>
+                    </div>
+                    <input
+                      id="similarity-threshold"
+                      type="range"
+                      min="50"
+                      max="95"
+                      step="1"
+                      value={Math.round(similarityThreshold * 100)}
+                      onChange={(e) => setSimilarityThreshold(parseInt(e.target.value) / 100)}
+                      className="threshold-slider"
+                      disabled={isProcessing}
+                    />
+                    <div className="threshold-marks">
+                      <span className="threshold-mark">50%</span>
+                      <span className="threshold-mark">65%</span>
+                      <span className="threshold-mark">80%</span>
+                      <span className="threshold-mark">95%</span>
+                    </div>
+                  </div>
+                  <p className="threshold-description">
+                    {similarityThreshold >= 0.9 ? '매우 엄격한 중복 검출 (거의 동일한 답변만 중복으로 판단)' :
+                     similarityThreshold >= 0.85 ? '엄격한 중복 검출 (매우 유사한 답변만 중복으로 판단)' :
+                     similarityThreshold >= 0.8 ? '권장 설정 (적절한 수준의 중복 검출)' :
+                     similarityThreshold >= 0.75 ? '보통 중복 검출 (어느 정도 유사한 답변도 중복으로 판단)' :
+                     similarityThreshold >= 0.7 ? '관대한 중복 검출 (상당히 다른 답변도 중복으로 판단)' :
+                     similarityThreshold >= 0.6 ? '매우 관대한 중복 검출 (약간의 유사성만으로도 중복 판단)' :
+                     '극도로 관대한 중복 검출 (최소한의 공통점만으로도 중복 판단)'}
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         )}

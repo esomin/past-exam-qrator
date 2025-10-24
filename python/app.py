@@ -334,7 +334,7 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
     return result
 
 
-def classify_by_category(data: List[Dict[str, Any]]) -> tuple[Dict[str, List[Dict[str, Any]]], Dict[str, Any]]:
+def classify_by_category(data: List[Dict[str, Any]], similarity_threshold: float = 0.8) -> tuple[Dict[str, List[Dict[str, Any]]], Dict[str, Any]]:
     """플래튼된 데이터를 category1별로 분류하고 중복 검출"""
     import re
     import math
@@ -464,7 +464,7 @@ def classify_by_category(data: List[Dict[str, Any]]) -> tuple[Dict[str, List[Dic
         category_groups[category1].append(item)
     
     # 각 카테고리 내에서 중복 검출 및 처리
-    threshold = 0.8  # 유사도 임계값
+    threshold = similarity_threshold  # 유사도 임계값 (사용자 설정 가능)
     
     for category, items in category_groups.items():
         if len(items) <= 1:
@@ -579,13 +579,85 @@ def classify_by_category(data: List[Dict[str, Any]]) -> tuple[Dict[str, List[Dic
                 item['similarityCount'] = None
                 item['similarity'] = None
     
-    # 각 카테고리별로 정렬 (similarityCount가 있는 것 먼저, 그 다음 category2, id 순)
+    # 각 카테고리별로 중복 그룹별 정렬 및 대표항목 ID 추가
     for category in category_groups:
-        category_groups[category].sort(key=lambda x: (
-            -(x.get('similarityCount') or 0),    # similarityCount가 있는 것 먼저 (None은 0으로 처리)
+        items = category_groups[category]
+        
+        # 1단계: 실제 중복 그룹 재식별 (기존 similarityCount는 무시하고 새로 계산)
+        processed_items = set()
+        similarity_groups = {}
+        unique_items = []
+        
+        # 대표항목(isUnique=True)을 기준으로 그룹 식별
+        for i, item in enumerate(items):
+            if i in processed_items:
+                continue
+                
+            similarity_count = item.get('similarityCount', 0)
+            if (item.get('isUnique') == True and 
+                similarity_count is not None and
+                isinstance(similarity_count, (int, float)) and
+                similarity_count > 1):
+                # 대표항목 발견 - 이 항목과 연관된 모든 중복항목 찾기
+                representative_id = item.get('id')
+                current_group = [item]  # 대표항목부터 시작
+                processed_items.add(i)
+                
+                # 같은 그룹의 중복항목들 찾기 (similarity 값이 있는 항목들)
+                for j, other_item in enumerate(items):
+                    similarity_val = other_item.get('similarity')
+                    if (j not in processed_items and 
+                        other_item.get('isUnique') == False and 
+                        similarity_val is not None and
+                        isinstance(similarity_val, (int, float)) and
+                        similarity_val > 0):
+                        current_group.append(other_item)
+                        processed_items.add(j)
+                
+                # 실제 그룹 크기로 similarityCount 업데이트
+                actual_group_size = len(current_group)
+                for group_item in current_group:
+                    group_item['similarityCount'] = actual_group_size
+                    if group_item.get('isUnique') == True:
+                        group_item['repId'] = None  # 대표항목 자신은 None
+                    else:
+                        group_item['repId'] = representative_id  # 중복항목은 대표항목 ID
+                
+                # 그룹 내 정렬: isUnique=True 먼저, 그 다음 유사도 높은 순
+                current_group.sort(key=lambda x: (
+                    not x.get('isUnique', False),    # isUnique=True가 먼저
+                    -(x.get('similarity') or 0),     # 유사도 높은 순
+                    x.get('id', 0)                   # ID 순
+                ))
+                
+                similarity_groups[representative_id] = current_group
+            
+            else:
+                similarity_count = item.get('similarityCount')
+                if (similarity_count is None or 
+                    (isinstance(similarity_count, (int, float)) and similarity_count <= 1)):
+                    # 고유 항목
+                    item['repId'] = None
+                    item['similarityCount'] = None
+                    unique_items.append(item)
+                    processed_items.add(i)
+        
+        # 2단계: 중복 그룹들을 대표항목 ID 순으로 정렬
+        sorted_group_keys = sorted(similarity_groups.keys())
+        
+        # 3단계: 고유 항목들 정렬
+        unique_items.sort(key=lambda x: (
             x.get('category2', ''),              # category2 오름차순
             x.get('id', 0)                       # id 오름차순
         ))
+        
+        # 4단계: 최종 결과 조합 (중복 그룹들 먼저, 그 다음 고유 항목들)
+        final_items = []
+        for group_key in sorted_group_keys:
+            final_items.extend(similarity_groups[group_key])
+        final_items.extend(unique_items)
+        
+        category_groups[category] = final_items
     
     # 카테고리명순으로 정렬된 결과 생성
     sorted_categories = sorted(category_groups.keys(), key=lambda x: x if x != 'Unknown' else 'ZZZ_Unknown')
@@ -650,7 +722,7 @@ def validate_json_data(data: Any) -> List[Dict[str, Any]]:
     return data
 
 
-def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict[str, Any]:
+def process_file_data(file_data: str, filename: str, options: List[str], similarity_threshold: float = 0.8) -> Dict[str, Any]:
     """
     Process uploaded file data with selected classification options
     Memory-optimized version with resource management
@@ -727,12 +799,17 @@ def process_file_data(file_data: str, filename: str, options: List[str]) -> Dict
         
         category_stats = None
         if 'category' in options:
-            results_data['category'], category_stats = classify_by_category(flattened_data)
+            results_data['category'], category_stats = classify_by_category(flattened_data, similarity_threshold)
             
             # 중복 제거된 결과 생성 (isUnique: true인 항목만)
             category_deduplicated = {}
             for category_name, items in results_data['category'].items():
-                unique_items = [item for item in items if item.get('isUnique') == True]
+                unique_items = []
+                for item in items:
+                    if item.get('isUnique') == True:
+                        # repId 제거한 복사본 생성
+                        clean_item = {k: v for k, v in item.items() if k != 'repId'}
+                        unique_items.append(clean_item)
                 if unique_items:
                     category_deduplicated[category_name] = unique_items
             
@@ -838,7 +915,8 @@ def process_file():
     {
         "file_data": "base64_encoded_json_content",
         "filename": "original_filename.json",
-        "options": ["category", "institution", "year"]
+        "options": ["category", "institution", "year"],
+        "similarity_threshold": 0.8  // Optional: 0.0-1.0, default 0.8
     }
     
     Returns:
@@ -907,11 +985,26 @@ def process_file():
                 }
             }), 400
         
+        # Get similarity threshold from request (default: 0.8)
+        similarity_threshold = data.get('similarity_threshold', 0.8)
+        
+        # Validate similarity threshold
+        if not isinstance(similarity_threshold, (int, float)) or not (0.0 <= similarity_threshold <= 1.0):
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_SIMILARITY_THRESHOLD',
+                    'message': 'Similarity threshold must be a number between 0.0 and 1.0',
+                    'details': f'Received: {similarity_threshold}'
+                }
+            }), 400
+        
         # Process the file
         result = process_file_data(
             file_data=data['file_data'],
             filename=data['filename'],
-            options=options
+            options=options,
+            similarity_threshold=similarity_threshold
         )
         
         return jsonify(result)
@@ -1108,9 +1201,9 @@ def download_multiple_files():
                             elif 'institution' in original_result.type:
                                 exclude_columns = ['institution']
                             elif original_result.type == 'category':
-                                exclude_columns = ['category1']
+                                exclude_columns = ['category1']  # category2는 유지
                             elif original_result.type == 'category_deduplicated':
-                                exclude_columns = ['category1', 'isUnique', 'similarity']
+                                exclude_columns = ['category1', 'isUnique', 'similarity', 'similarityCount', 'repId']  # category2는 유지
                             
                             # Convert to markdown
                             markdown_content = convert_json_to_markdown(original_result.data, exclude_columns)
@@ -1217,9 +1310,9 @@ def convert_to_markdown(download_id: str):
         
         # For category classification, automatically exclude category columns
         if result.type == 'category':
-            exclude_columns.extend(['category1', 'category2'])
+            exclude_columns.extend(['category1'])  # category2는 유지
         elif result.type == 'category_deduplicated':
-            exclude_columns.extend(['category1', 'isUnique', 'similarity', 'similarityCount'])
+            exclude_columns.extend(['category1', 'isUnique', 'similarity', 'similarityCount', 'repId'])  # category2는 유지
         
         # Convert to markdown
         markdown_content = convert_json_to_markdown(result.data, exclude_columns)

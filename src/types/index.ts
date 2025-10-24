@@ -44,6 +44,7 @@ export interface ProcessFileRequest {
   file_data: string; // base64 encoded JSON
   filename: string;
   options: string[]; // ["category", "institution", "year"]
+  similarity_threshold?: number; // 0.0 to 1.0, default 0.8
 }
 
 export interface ProcessMultipleFilesRequest {
