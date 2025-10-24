@@ -7,7 +7,7 @@ import ProgressIndicator from '../components/ProgressIndicator'
 import { processFile, processMultipleFiles, downloadFile, downloadMultipleFiles, downloadMarkdownFile, getServerStatus } from '../services/api'
 import { useErrorHandler } from '../utils/errorHandler'
 
-import type { ProcessingOption, ProcessingResult, ErrorState, CategoryStatistics } from '../types/index'
+import type { ProcessingOption, ProcessingResult, ErrorState } from '../types/index'
 
 function FileProcessorPage() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
