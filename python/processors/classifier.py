@@ -95,13 +95,18 @@ class ClassificationEngine:
             institution = item.get('institution', 'Unknown')
             result[institution].append(item)
         
-        # 각 기관별로 category1, category2, ID순 정렬
+        # 각 기관별로 연도별(내림차순) → category1 → category2 순 정렬
         for institution in result:
+            # 먼저 category1, category2, id로 정렬
             result[institution].sort(key=lambda x: (
                 x.get('categoryTitle', ''),  # 1차 정렬: category1
                 x.get('category2', ''),      # 2차 정렬: category2
                 x.get('id', 0)               # 3차 정렬: id
             ))
+            # 그 다음 연도별 내림차순으로 안정 정렬
+            result[institution].sort(key=lambda x: (
+                '0' if x.get('year', 'Unknown') == 'Unknown' else x.get('year', 'Unknown')
+            ), reverse=True)
         
         return dict(result)
     
@@ -112,16 +117,17 @@ class ClassificationEngine:
             year = item.get('year', 'Unknown')
             result[year].append(item)
         
-        # 각 연도별로 category1, category2, ID순 정렬
+        # 각 연도별로 기관별 → category1 → category2 순 정렬
         for year in result:
             result[year].sort(key=lambda x: (
-                x.get('categoryTitle', ''),  # 1차 정렬: category1
-                x.get('category2', ''),      # 2차 정렬: category2
-                x.get('id', 0)               # 3차 정렬: id
+                x.get('institution', 'Unknown'),  # 1차 정렬: institution
+                x.get('categoryTitle', ''),       # 2차 정렬: category1
+                x.get('category2', ''),           # 3차 정렬: category2
+                x.get('id', 0)                    # 4차 정렬: id
             ))
         
-        # 연도순으로 정렬된 결과 생성
-        sorted_years = sorted(result.keys(), key=lambda x: x if x != 'Unknown' else '0000')
+        # 연도순으로 정렬된 결과 생성 (내림차순)
+        sorted_years = sorted(result.keys(), key=lambda x: x if x != 'Unknown' else '0000', reverse=True)
         sorted_result = {year: result[year] for year in sorted_years}
         
         return sorted_result

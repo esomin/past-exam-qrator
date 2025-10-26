@@ -11,7 +11,7 @@ import tempfile
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from flask import Flask, request, jsonify, send_file, abort
 from flask_cors import CORS
 from werkzeug.exceptions import BadRequest
@@ -34,6 +34,34 @@ resource_manager = ResourceManager(max_memory_mb=1000)  # 1GB memory limit
 class ProcessingError(Exception):
     """Custom exception for processing errors"""
     pass
+
+
+def reorder_item_fields(item: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    항목의 필드를 요구사항에 맞는 순서로 재정렬
+    순서: id, question, year, institution, category1, category2, answer, answerKind, isCorrect, commentary
+    """
+    preferred_order = [
+        'id', 'question', 'year', 'institution', 'category1', 'category2',
+        'answer', 'answerKind', 'isCorrect', 'commentary',
+        # 중복 제거 관련 필드들
+        'isUnique', 'similarity', 'similarityCount', 'repId'
+    ]
+    
+    # OrderedDict를 사용하여 순서 유지
+    ordered_item = OrderedDict()
+    
+    # 선호 순서대로 필드 추가
+    for key in preferred_order:
+        if key in item:
+            ordered_item[key] = item[key]
+    
+    # 나머지 필드들을 알파벳 순으로 추가
+    remaining_keys = sorted([k for k in item.keys() if k not in preferred_order])
+    for key in remaining_keys:
+        ordered_item[key] = item[key]
+    
+    return dict(ordered_item)
 
 
 def extract_institution_from_solve(solve: str) -> str:
@@ -122,15 +150,17 @@ def create_markdown_table(items: List[Dict], exclude_columns: List[str] = None) 
     if not columns:
         return "No columns to display after filtering.\n"
     
-    # Sort columns for consistent output, but put 'id' first if it exists
-    if 'id' in columns:
-        # Remove 'id' from the list and sort the rest
-        columns.remove('id')
-        columns.sort()
-        # Put 'id' at the beginning
-        columns = ['id'] + columns
-    else:
-        columns.sort()
+    # 요구사항에 맞는 컬럼 순서 정의
+    preferred_order = ['id', 'question', 'year', 'institution', 'category1', 'category2', 
+                      'answer', 'answerKind', 'isCorrect', 'commentary']
+    
+    # 선호 순서에 있는 컬럼들을 먼저 배치
+    ordered_columns = [col for col in preferred_order if col in columns]
+    
+    # 선호 순서에 없는 나머지 컬럼들을 알파벳 순으로 추가
+    remaining_columns = sorted([col for col in columns if col not in preferred_order])
+    
+    columns = ordered_columns + remaining_columns
     
     # Create table header
     header = "| " + " | ".join(columns) + " |"
@@ -242,31 +272,27 @@ def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[s
                 answer_data["answerKind"]
             )
             
-            # 최종 플래튼 항목 생성 - 개선된 컬럼 순서
+            # 최종 플래튼 항목 생성 - 요구사항에 맞는 컬럼 순서
             # question 필드에 title과 text 합치기
             question_title = question_data["title"] or ""
             question_text = question_data["text"] or ""
             combined_question = f"{question_title} {question_text}".strip()
             
-            flattened_item = {
-                # Primary Information First
-                "id": answer_data["id"],
-                "question": combined_question,
-                "answer": answer_data["title"],
-                
-                # Classification & Context
-                "category1": question_data["categoryTitle"],
-                "category2": question_data["category2"],
-                "institution": institution,
-                "year": year,
-                
-                # Answer Analysis
-                "answerKind": answer_data["answerKind"],
-                "isCorrect": is_correct,
-                "commentary": answer_data["commentary"]
-            }
+            # 순서를 보장하기 위해 OrderedDict 사용
+            flattened_item = OrderedDict([
+                ("id", answer_data["id"]),
+                ("question", combined_question),
+                ("year", year),
+                ("institution", institution),
+                ("category1", question_data["categoryTitle"]),
+                ("category2", question_data["category2"]),
+                ("answer", answer_data["title"]),
+                ("answerKind", answer_data["answerKind"]),
+                ("isCorrect", is_correct),
+                ("commentary", answer_data["commentary"])
+            ])
             
-            flattened_data.append(flattened_item)
+            flattened_data.append(dict(flattened_item))
             
             # 문제 제목 추가 (중복 문제 계산용)
             seen_questions.add(question_data["title"])
@@ -298,15 +324,22 @@ def classify_by_institution(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[s
     
     for item in data:
         institution = item.get('institution', 'Unknown')
-        institution_groups[institution].append(item)
+        # 필드 순서 재정렬
+        ordered_item = reorder_item_fields(item)
+        institution_groups[institution].append(ordered_item)
     
-    # 각 기관별로 category1, category2, ID순 정렬
+    # 각 기관별로 연도별(내림차순) → category1 → category2 순 정렬
     for institution in institution_groups:
         institution_groups[institution].sort(key=lambda x: (
-            x.get('category1', ''),  # 1차 정렬: category1
-            x.get('category2', ''),      # 2차 정렬: category2
-            x.get('id', 0)               # 3차 정렬: id
-        ))
+            x.get('year', 'Unknown') if x.get('year', 'Unknown') == 'Unknown' else f"Z{x.get('year', 'Unknown')}",  # Unknown을 맨 뒤로
+            x.get('category1', ''),      # 2차 정렬: category1
+            x.get('category2', ''),      # 3차 정렬: category2
+            x.get('id', 0)               # 4차 정렬: id
+        ), reverse=False)
+        # 연도만 내림차순으로 재정렬
+        institution_groups[institution].sort(key=lambda x: (
+            '0' if x.get('year', 'Unknown') == 'Unknown' else x.get('year', 'Unknown')
+        ), reverse=True)
     
     return dict(institution_groups)
 
@@ -317,18 +350,21 @@ def classify_by_year(data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any
     
     for item in data:
         year = item.get('year', 'Unknown')
-        year_groups[year].append(item)
+        # 필드 순서 재정렬
+        ordered_item = reorder_item_fields(item)
+        year_groups[year].append(ordered_item)
     
-    # 각 연도별로 category1, category2, ID순 정렬
+    # 각 연도별로 기관별 → category1 → category2 순 정렬
     for year in year_groups:
         year_groups[year].sort(key=lambda x: (
-            x.get('category1', ''),  # 1차 정렬: category1
-            x.get('category2', ''),      # 2차 정렬: category2
-            x.get('id', 0)               # 3차 정렬: id
+            x.get('institution', 'Unknown'),  # 1차 정렬: institution
+            x.get('category1', ''),           # 2차 정렬: category1
+            x.get('category2', ''),           # 3차 정렬: category2
+            x.get('id', 0)                    # 4차 정렬: id
         ))
     
-    # 연도순으로 정렬된 결과 생성
-    sorted_years = sorted(year_groups.keys(), key=lambda x: x if x != 'Unknown' else '0000')
+    # 연도순으로 정렬된 결과 생성 (내림차순)
+    sorted_years = sorted(year_groups.keys(), key=lambda x: x if x != 'Unknown' else '0000', reverse=True)
     result = {year: year_groups[year] for year in sorted_years}
     
     return result
@@ -564,6 +600,9 @@ def classify_by_category(data: List[Dict[str, Any]], similarity_threshold: float
                             tfidf_vectors[group_idx]
                         )
                         items[group_original_idx]['similarity'] = round(similarity_value, 4)
+                    
+                    # 필드 순서 재정렬
+                    items[group_original_idx] = reorder_item_fields(items[group_original_idx])
             else:
                 # 중복 그룹이 없는 유일한 항목
                 items[original_idx]['isUnique'] = True
@@ -578,6 +617,8 @@ def classify_by_category(data: List[Dict[str, Any]], similarity_threshold: float
                 item['isUnique'] = True
                 item['similarityCount'] = None
                 item['similarity'] = None
+                # 필드 순서 재정렬
+                items[i] = reorder_item_fields(item)
     
     # 각 카테고리별로 중복 그룹별 정렬 및 대표항목 ID 추가
     for category in category_groups:
@@ -622,6 +663,10 @@ def classify_by_category(data: List[Dict[str, Any]], similarity_threshold: float
                         group_item['repId'] = None  # 대표항목 자신은 None
                     else:
                         group_item['repId'] = representative_id  # 중복항목은 대표항목 ID
+                    # 필드 순서 재정렬 (repId 포함)
+                    reordered = reorder_item_fields(group_item)
+                    group_item.clear()
+                    group_item.update(reordered)
                 
                 # 그룹 내 정렬: isUnique=True 먼저, 그 다음 유사도 높은 순
                 current_group.sort(key=lambda x: (
@@ -639,7 +684,9 @@ def classify_by_category(data: List[Dict[str, Any]], similarity_threshold: float
                     # 고유 항목
                     item['repId'] = None
                     item['similarityCount'] = None
-                    unique_items.append(item)
+                    # 필드 순서 재정렬
+                    reordered = reorder_item_fields(item)
+                    unique_items.append(reordered)
                     processed_items.add(i)
         
         # 2단계: 중복 그룹들을 대표항목 ID 순으로 정렬
@@ -789,7 +836,8 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
         results_data = {}
         
         if 'flatten' in options:
-            results_data['flatten'] = flattened_data
+            # flatten 데이터도 필드 순서 재정렬
+            results_data['flatten'] = [reorder_item_fields(item) for item in flattened_data]
         
         if 'institution' in options:
             results_data['institution'] = classify_by_institution(flattened_data)
@@ -809,6 +857,8 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
                     if item.get('isUnique') == True:
                         # repId 제거한 복사본 생성
                         clean_item = {k: v for k, v in item.items() if k != 'repId'}
+                        # 필드 순서 재정렬
+                        clean_item = reorder_item_fields(clean_item)
                         unique_items.append(clean_item)
                 if unique_items:
                     category_deduplicated[category_name] = unique_items
