@@ -231,6 +231,105 @@ export const processFile = async (
 };
 
 /**
+ * Upload and process multiple JSON files as a merged dataset with selected classification options
+ */
+export const processMergedFiles = async (
+  files: File[],
+  selectedOptions: string[],
+  similarityThreshold: number = 0.8
+): Promise<ProcessFileResponse> => {
+  try {
+    // Validate files array
+    if (!Array.isArray(files) || files.length === 0) {
+      return {
+        success: false,
+        error: {
+          code: 'NO_FILES_PROVIDED',
+          message: 'Please provide at least one file to process',
+        },
+      };
+    }
+
+    // Client-side validation for all files
+    const allFileErrors: ValidationError[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const fileErrors = validateFile(files[i]);
+      if (fileErrors.length > 0) {
+        allFileErrors.push(...fileErrors.map(error => ({
+          ...error,
+          message: `File ${i + 1} (${files[i].name}): ${error.message}`
+        })));
+      }
+    }
+
+    if (allFileErrors.length > 0) {
+      return {
+        success: false,
+        error: {
+          code: allFileErrors[0].code,
+          message: allFileErrors[0].message,
+          details: allFileErrors.map(e => e.message).join('; ')
+        },
+      };
+    }
+
+    const optionErrors = validateProcessingOptions(selectedOptions);
+    if (optionErrors.length > 0) {
+      return {
+        success: false,
+        error: {
+          code: optionErrors[0].code,
+          message: optionErrors[0].message,
+          details: optionErrors.map(e => e.message).join('; ')
+        },
+      };
+    }
+
+    // Convert all files to base64
+    const fileDataArray = [];
+    for (const file of files) {
+      try {
+        const fileData = await fileToBase64(file);
+        fileDataArray.push({
+          file_data: fileData,
+          filename: file.name
+        });
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            code: 'FILE_READ_ERROR',
+            message: `Failed to read file: ${file.name}`,
+            details: error instanceof Error ? error.message : 'Unknown file read error'
+          },
+        };
+      }
+    }
+
+    const requestData = {
+      files: fileDataArray,
+      options: selectedOptions,
+      similarity_threshold: similarityThreshold,
+    };
+
+    // Use retry mechanism for network requests
+    const response = await retryRequest(
+      () => api.post<ProcessFileResponse>('/process-merged', requestData),
+      3,
+      1000
+    );
+    
+    return response.data;
+  } catch (error) {
+    const apiError = handleApiError(error as AxiosError);
+    return {
+      success: false,
+      error: apiError,
+    };
+  }
+};
+
+/**
  * Upload and process multiple JSON files individually with selected classification options
  */
 export const processMultipleFiles = async (

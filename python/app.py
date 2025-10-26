@@ -956,6 +956,246 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
 
 
 
+@app.route('/api/process-merged', methods=['POST'])
+def process_merged_files():
+    """
+    Process multiple uploaded files as a single merged dataset
+    
+    Expected JSON payload:
+    {
+        "files": [
+            {
+                "file_data": "base64_encoded_json_content",
+                "filename": "file1.json"
+            },
+            {
+                "file_data": "base64_encoded_json_content", 
+                "filename": "file2.json"
+            }
+        ],
+        "options": ["category", "institution", "year"],
+        "similarity_threshold": 0.8  // Optional: 0.0-1.0, default 0.8
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "results": [
+            {
+                "type": "category",
+                "filename": "merged_category_classification.json",
+                "download_id": "uuid"
+            }
+        ],
+        "processed_items": 1234,
+        "original_questions": 567
+    }
+    """
+    try:
+        # Validate request
+        if not request.is_json:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_REQUEST',
+                    'message': 'Request must be JSON',
+                    'details': 'Content-Type must be application/json'
+                }
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['files', 'options']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'MISSING_FIELD',
+                        'message': f'Missing required field: {field}',
+                        'details': f'The field "{field}" is required in the request body'
+                    }
+                }), 400
+        
+        # Validate files array
+        files = data['files']
+        if not isinstance(files, list) or not files:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_FILES',
+                    'message': 'Files must be a non-empty array',
+                    'details': 'Provide at least one file to process'
+                }
+            }), 400
+        
+        # Validate each file in the array
+        for i, file_info in enumerate(files):
+            if not isinstance(file_info, dict):
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_FILE_FORMAT',
+                        'message': f'File {i+1} must be an object',
+                        'details': 'Each file must have file_data and filename fields'
+                    }
+                }), 400
+            
+            if 'file_data' not in file_info or 'filename' not in file_info:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'MISSING_FILE_FIELDS',
+                        'message': f'File {i+1} missing required fields',
+                        'details': 'Each file must have file_data and filename fields'
+                    }
+                }), 400
+        
+        # Validate options
+        valid_options = {'category', 'institution', 'year', 'flatten'}
+        options = data['options']
+        
+        if not isinstance(options, list) or not options:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OPTIONS',
+                    'message': 'At least one processing option must be selected',
+                    'details': f'Valid options are: {", ".join(valid_options)}'
+                }
+            }), 400
+        
+        invalid_options = set(options) - valid_options
+        if invalid_options:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OPTIONS',
+                    'message': f'Invalid processing options: {", ".join(invalid_options)}',
+                    'details': f'Valid options are: {", ".join(valid_options)}'
+                }
+            }), 400
+        
+        # Get similarity threshold from request (default: 0.8)
+        similarity_threshold = data.get('similarity_threshold', 0.8)
+        
+        # Validate similarity threshold
+        if not isinstance(similarity_threshold, (int, float)) or not (0.0 <= similarity_threshold <= 1.0):
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_SIMILARITY_THRESHOLD',
+                    'message': 'Similarity threshold must be a number between 0.0 and 1.0',
+                    'details': f'Received: {similarity_threshold}'
+                }
+            }), 400
+        
+        # Merge all files into a single dataset
+        merged_data = []
+        total_file_size_mb = 0
+        filenames = []
+        
+        for file_info in files:
+            try:
+                # Decode base64 data
+                json_content = base64.b64decode(file_info['file_data']).decode('utf-8')
+                file_data = json.loads(json_content)
+                
+                # Validate individual file data
+                validated_data = validate_json_data(file_data)
+                merged_data.extend(validated_data)
+                
+                # Track file info
+                file_size_mb = len(file_info['file_data']) * 3 / 4 / 1024 / 1024
+                total_file_size_mb += file_size_mb
+                filenames.append(file_info['filename'])
+                
+                app.logger.info(f"Merged file: {file_info['filename']} (~{file_size_mb:.1f}MB, {len(validated_data)} questions)")
+                
+            except json.JSONDecodeError as e:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_JSON',
+                        'message': f'Invalid JSON in file {file_info["filename"]}: {str(e)}',
+                        'details': 'Please ensure all files contain valid JSON data'
+                    }
+                }), 400
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'FILE_PROCESSING_ERROR',
+                        'message': f'Error processing file {file_info["filename"]}: {str(e)}',
+                        'details': 'Please check the file format and try again'
+                    }
+                }), 400
+        
+        # Check merged data size limits
+        max_questions = 100000  # 100K questions limit
+        if len(merged_data) > max_questions:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'DATASET_TOO_LARGE',
+                    'message': f'Merged dataset too large: {len(merged_data)} questions (max: {max_questions})',
+                    'details': 'Please reduce the number of files or questions per file'
+                }
+            }), 400
+        
+        # Generate merged filename
+        if len(filenames) == 1:
+            merged_filename = filenames[0]
+        else:
+            # Create a descriptive merged filename
+            base_names = [os.path.splitext(name)[0] for name in filenames[:3]]  # Use first 3 filenames
+            if len(filenames) > 3:
+                merged_filename = f"merged_{'+'.join(base_names)}_and_{len(filenames)-3}_more.json"
+            else:
+                merged_filename = f"merged_{'+'.join(base_names)}.json"
+        
+        app.logger.info(f"Processing merged dataset: {len(merged_data)} questions from {len(files)} files (~{total_file_size_mb:.1f}MB total)")
+        
+        # Process the merged dataset using existing logic
+        result = process_file_data(
+            file_data=base64.b64encode(json.dumps(merged_data).encode('utf-8')).decode('utf-8'),
+            filename=merged_filename,
+            options=options,
+            similarity_threshold=similarity_threshold
+        )
+        
+        # Add merge information to the response
+        result['merge_info'] = {
+            'source_files': filenames,
+            'total_files': len(files),
+            'total_size_mb': round(total_file_size_mb, 2)
+        }
+        
+        return jsonify(result)
+        
+    except ProcessingError as e:
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'PROCESSING_ERROR',
+                'message': str(e),
+                'details': 'Merged file processing failed'
+            }
+        }), 400
+        
+    except Exception as e:
+        app.logger.error(f"Unexpected error in process_merged_files: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'INTERNAL_ERROR',
+                'message': 'An unexpected error occurred during merged processing',
+                'details': 'Please try again or contact support'
+            }
+        }), 500
+
+
 @app.route('/api/process', methods=['POST'])
 def process_file():
     """

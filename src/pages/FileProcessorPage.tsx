@@ -4,7 +4,7 @@ import ProcessingOptions from '../components/ProcessingOptions'
 import ResultsDisplay from '../components/ResultsDisplay'
 import ErrorDisplay from '../components/ErrorDisplay'
 import ProgressIndicator from '../components/ProgressIndicator'
-import { processFile, processMultipleFiles, downloadFile, downloadMultipleFiles, downloadMarkdownFile, getServerStatus } from '../services/api'
+import { processFile, processMultipleFiles, processMergedFiles, downloadFile, downloadMultipleFiles, downloadMarkdownFile, getServerStatus } from '../services/api'
 import { useErrorHandler } from '../utils/errorHandler'
 
 import type { ProcessingOption, ProcessingResult, ErrorState } from '../types/index'
@@ -37,6 +37,7 @@ function FileProcessorPage() {
     unique_percentage: number
   } | null>(null)
   const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.8)
+  const [mergeFiles, setMergeFiles] = useState<boolean>(false)
 
   const { handleError } = useErrorHandler()
 
@@ -125,7 +126,9 @@ function FileProcessorPage() {
       const progressSteps = [
         { progress: 10, message: 'Uploading file to server...' },
         { progress: 30, message: 'Parsing JSON data...' },
-        { progress: 50, message: `Processing ${classificationOptions.length} classification${classificationOptions.length > 1 ? 's' : ''}...` },
+        { progress: 50, message: uploadedFiles.length > 1 && mergeFiles 
+          ? `Merging ${uploadedFiles.length} files and processing ${classificationOptions.length} classification${classificationOptions.length > 1 ? 's' : ''}...`
+          : `Processing ${classificationOptions.length} classification${classificationOptions.length > 1 ? 's' : ''}...` },
         { progress: 80, message: 'Generating output files...' },
         { progress: 95, message: 'Finalizing results...' }
       ]
@@ -137,9 +140,14 @@ function FileProcessorPage() {
       }
 
       // Process with classification options only
-      const response = uploadedFiles.length === 1
-        ? await processFile(uploadedFiles[0], classificationOptions, similarityThreshold)
-        : await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold)
+      let response;
+      if (uploadedFiles.length === 1) {
+        response = await processFile(uploadedFiles[0], classificationOptions, similarityThreshold);
+      } else if (mergeFiles) {
+        response = await processMergedFiles(uploadedFiles, classificationOptions, similarityThreshold);
+      } else {
+        response = await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold);
+      }
 
       setProcessingProgress(100)
       setProcessingMessage('Processing complete!')
@@ -420,6 +428,46 @@ function FileProcessorPage() {
               <h2 id="options-heading" className="step-title">Select Options</h2>
             </div>
             <div className="step-content">
+              {uploadedFiles.length > 1 && (
+                <div className="merge-option-section">
+                  <h3 className="merge-option-title">파일 처리 방식</h3>
+                  <div className="merge-option-controls">
+                    <label className="merge-option-label">
+                      <input
+                        type="radio"
+                        name="processing-mode"
+                        checked={!mergeFiles}
+                        onChange={() => setMergeFiles(false)}
+                        disabled={isProcessing}
+                        className="merge-option-radio"
+                      />
+                      <span className="merge-option-text">
+                        <strong>개별 처리</strong> - 각 파일을 별도로 처리하여 여러 결과 파일 생성
+                      </span>
+                    </label>
+                    <label className="merge-option-label">
+                      <input
+                        type="radio"
+                        name="processing-mode"
+                        checked={mergeFiles}
+                        onChange={() => setMergeFiles(true)}
+                        disabled={isProcessing}
+                        className="merge-option-radio"
+                      />
+                      <span className="merge-option-text">
+                        <strong>병합 처리</strong> - 모든 파일을 하나로 합쳐서 처리하여 단일 결과 파일 생성
+                      </span>
+                    </label>
+                  </div>
+                  <p className="merge-option-description">
+                    {mergeFiles 
+                      ? `${uploadedFiles.length}개 파일이 하나의 데이터셋으로 병합되어 처리됩니다. 선택한 각 옵션에 대해 하나씩의 결과 파일이 생성됩니다.`
+                      : `${uploadedFiles.length}개 파일이 각각 개별적으로 처리됩니다. 각 파일과 옵션 조합마다 별도의 결과 파일이 생성됩니다.`
+                    }
+                  </p>
+                </div>
+              )}
+              
               <ProcessingOptions
                 options={processingOptions}
                 onOptionsChange={handleOptionsChange}
@@ -531,7 +579,12 @@ function FileProcessorPage() {
                 )}
               </button>
               <p id="process-description" className="process-description">
-                Click to start processing your {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} with the selected classification options
+                {uploadedFiles.length === 1 
+                  ? `Click to start processing your file with the selected classification options`
+                  : mergeFiles 
+                    ? `Click to start processing your ${uploadedFiles.length} files as a merged dataset with the selected classification options`
+                    : `Click to start processing your ${uploadedFiles.length} files individually with the selected classification options`
+                }
               </p>
             </div>
           </section>
@@ -608,7 +661,10 @@ function FileProcessorPage() {
         isVisible={isProcessing}
         message={processingMessage}
         progress={processingProgress}
-        subMessage={`Processing ${selectedOptions.length} classification type${selectedOptions.length > 1 ? 's' : ''}`}
+        subMessage={uploadedFiles.length > 1 && mergeFiles 
+          ? `Merging ${uploadedFiles.length} files • Processing ${selectedOptions.length} classification type${selectedOptions.length > 1 ? 's' : ''}`
+          : `Processing ${selectedOptions.length} classification type${selectedOptions.length > 1 ? 's' : ''}`
+        }
       />
     </main>
   )
