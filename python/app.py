@@ -24,6 +24,10 @@ from optimize_file_cleanup import ResourceManager
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)  # Enable CORS for React frontend communication
 
+# Configure Flask for large file uploads
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max request size
+app.config['JSON_AS_ASCII'] = False
+
 # Global classification engine for managing results
 classification_engine = ClassificationEngine()
 
@@ -844,17 +848,35 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
     """
     try:
         # Check file size before processing
+        file_data_size_mb = len(file_data) / (1024 * 1024)  # Base64 size
         file_size_mb = len(file_data) * 3 / 4 / 1024 / 1024  # Estimate decoded size
-        app.logger.info(f"Processing file: {filename} (~{file_size_mb:.1f}MB)")
+        app.logger.info(f"Processing file: {filename} (base64: {file_data_size_mb:.1f}MB, decoded: ~{file_size_mb:.1f}MB)")
         
         # Implement file size limits
         max_file_size_mb = 100  # 100MB limit
         if file_size_mb > max_file_size_mb:
-            raise ProcessingError(f"File too large: {file_size_mb:.1f}MB (max: {max_file_size_mb}MB)")
+            error_msg = f"File too large: {file_size_mb:.1f}MB (max: {max_file_size_mb}MB)"
+            app.logger.error(error_msg)
+            raise ProcessingError(error_msg)
         
         # Decode base64 data
-        json_content = base64.b64decode(file_data).decode('utf-8')
-        input_data = json.loads(json_content)
+        try:
+            app.logger.info(f"Decoding base64 data...")
+            json_content = base64.b64decode(file_data).decode('utf-8')
+            app.logger.info(f"Decoded content size: {len(json_content) / (1024 * 1024):.1f}MB")
+        except Exception as e:
+            error_msg = f"Failed to decode base64 data: {str(e)}"
+            app.logger.error(error_msg)
+            raise ProcessingError(error_msg)
+        
+        try:
+            app.logger.info(f"Parsing JSON content...")
+            input_data = json.loads(json_content)
+            app.logger.info(f"JSON parsed successfully: {len(input_data)} items")
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON format: {str(e)}"
+            app.logger.error(error_msg)
+            raise ProcessingError(error_msg)
         
         # Validate input data
         validated_data = validate_json_data(input_data)
@@ -1088,6 +1110,13 @@ def process_merged_files():
     }
     """
     try:
+        # Log request information
+        content_length = request.content_length
+        if content_length:
+            content_length_mb = content_length / (1024 * 1024)
+            app.logger.info(f"Received process-merged request: {content_length_mb:.2f}MB from {request.remote_addr}")
+        else:
+            app.logger.info(f"Received process-merged request from {request.remote_addr}")
         # Validate request
         if not request.is_json:
             return jsonify({
@@ -1275,6 +1304,7 @@ def process_merged_files():
         return jsonify(result)
         
     except ProcessingError as e:
+        app.logger.error(f"Processing error in merged files: {str(e)}")
         return jsonify({
             'success': False,
             'error': {
@@ -1283,15 +1313,26 @@ def process_merged_files():
                 'details': 'Merged file processing failed'
             }
         }), 400
+    
+    except BadRequest as e:
+        app.logger.error(f"Bad request error in merged files: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'BAD_REQUEST',
+                'message': 'Invalid request format or size',
+                'details': str(e)
+            }
+        }), 413 if 'too large' in str(e).lower() else 400
         
     except Exception as e:
-        app.logger.error(f"Unexpected error in process_merged_files: {str(e)}")
+        app.logger.error(f"Unexpected error in process_merged_files: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': {
                 'code': 'INTERNAL_ERROR',
                 'message': 'An unexpected error occurred during merged processing',
-                'details': 'Please try again or contact support'
+                'details': str(e)
             }
         }), 500
 
@@ -1324,6 +1365,13 @@ def process_file():
     }
     """
     try:
+        # Log request information
+        content_length = request.content_length
+        if content_length:
+            content_length_mb = content_length / (1024 * 1024)
+            app.logger.info(f"Received process request: {content_length_mb:.2f}MB from {request.remote_addr}")
+        else:
+            app.logger.info(f"Received process request from {request.remote_addr}")
         # Validate request
         if not request.is_json:
             return jsonify({
@@ -1404,6 +1452,7 @@ def process_file():
         return jsonify(result)
         
     except ProcessingError as e:
+        app.logger.error(f"Processing error: {str(e)}")
         return jsonify({
             'success': False,
             'error': {
@@ -1412,15 +1461,26 @@ def process_file():
                 'details': 'File processing failed'
             }
         }), 400
+    
+    except BadRequest as e:
+        app.logger.error(f"Bad request error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'BAD_REQUEST',
+                'message': 'Invalid request format or size',
+                'details': str(e)
+            }
+        }), 413 if 'too large' in str(e).lower() else 400
         
     except Exception as e:
-        app.logger.error(f"Unexpected error in process_file: {str(e)}")
+        app.logger.error(f"Unexpected error in process_file: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': {
                 'code': 'INTERNAL_ERROR',
                 'message': 'An unexpected error occurred',
-                'details': 'Please try again or contact support'
+                'details': str(e)
             }
         }), 500
 
@@ -1911,9 +1971,24 @@ def not_found(error):
     }), 404
 
 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle 413 errors (request too large)"""
+    app.logger.error(f"Request too large: {error}")
+    return jsonify({
+        'success': False,
+        'error': {
+            'code': 'REQUEST_TOO_LARGE',
+            'message': 'Request entity too large',
+            'details': f'The uploaded file exceeds the maximum allowed size of {app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024):.0f}MB'
+        }
+    }), 413
+
+
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
+    app.logger.error(f"Internal server error: {error}", exc_info=True)
     return jsonify({
         'success': False,
         'error': {

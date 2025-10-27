@@ -17,14 +17,31 @@ const API_BASE_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 second timeout for file processing
+  timeout: 120000, // 120 second timeout for large file processing
   headers: {
     'Content-Type': 'application/json',
   },
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
 });
 
 // Enhanced error handling utilities
 const handleApiError = (error: AxiosError): ApiError | NetworkError => {
+  // Log detailed error information for debugging
+  console.error('API Error Details:', {
+    message: error.message,
+    code: error.code,
+    status: error.response?.status,
+    statusText: error.response?.statusText,
+    data: error.response?.data,
+    config: {
+      url: error.config?.url,
+      method: error.config?.method,
+      timeout: error.config?.timeout,
+      dataSize: error.config?.data ? JSON.stringify(error.config.data).length : 0
+    }
+  });
+
   if (error.response?.data) {
     // Server returned an error response
     const serverError = error.response.data as any;
@@ -35,10 +52,25 @@ const handleApiError = (error: AxiosError): ApiError | NetworkError => {
     };
   } else if (error.request) {
     // Network error - no response received
+    let errorMessage = 'Unable to connect to the server. Please check your connection and try again.';
+    let errorDetails = error.message;
+    
+    // Provide more specific error messages based on error code
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Request timeout. The file may be too large or the server is taking too long to respond.';
+      errorDetails = 'Try uploading a smaller file or check your network connection.';
+    } else if (error.code === 'ERR_NETWORK') {
+      errorMessage = 'Network error. Unable to reach the server.';
+      errorDetails = 'Please check if the server is running and your network connection is stable.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Request timeout. The operation took too long to complete.';
+      errorDetails = 'This may be due to a large file size or slow network connection.';
+    }
+    
     const networkError: NetworkError = {
       code: 'NETWORK_ERROR',
-      message: 'Unable to connect to the server. Please check your connection and try again.',
-      details: error.message,
+      message: errorMessage,
+      details: errorDetails,
       isNetworkError: true,
       retryable: true,
     };
@@ -66,14 +98,23 @@ const validateFile = (file: File): ValidationError[] => {
     });
   }
   
-  // File size validation (10MB limit)
-  const maxSize = 10 * 1024 * 1024; // 10MB
+  // File size validation (50MB limit - increased for larger files)
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  const fileSizeMB = file.size / (1024 * 1024);
+  
+  console.log(`File validation: ${file.name}, Size: ${fileSizeMB.toFixed(2)}MB`);
+  
   if (file.size > maxSize) {
     errors.push({
       field: 'file',
-      message: 'File size must be less than 10MB',
+      message: `File size must be less than 50MB (current: ${fileSizeMB.toFixed(2)}MB)`,
       code: 'FILE_TOO_LARGE'
     });
+  }
+  
+  // Warning for large files (over 10MB)
+  if (file.size > 10 * 1024 * 1024 && file.size <= maxSize) {
+    console.warn(`Large file detected: ${file.name} (${fileSizeMB.toFixed(2)}MB). Processing may take longer.`);
   }
   
   // File name validation
@@ -194,9 +235,15 @@ export const processFile = async (
 
     // Convert file to base64 with error handling
     let fileData: string;
+    const fileSizeMB = file.size / (1024 * 1024);
+    console.log(`Starting file conversion: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
+    
     try {
       fileData = await fileToBase64(file);
+      const base64SizeMB = (fileData.length * 3 / 4) / (1024 * 1024);
+      console.log(`File converted to base64: ${base64SizeMB.toFixed(2)}MB`);
     } catch (error) {
+      console.error('File read error:', error);
       return {
         success: false,
         error: {
@@ -215,13 +262,27 @@ export const processFile = async (
       ...(filterOptions && { filter_options: filterOptions })
     };
 
-    // Use retry mechanism for network requests
+    const requestSizeMB = JSON.stringify(requestData).length / (1024 * 1024);
+    console.log(`Sending request to server: ${requestSizeMB.toFixed(2)}MB`);
+    console.log(`Request details: file=${file.name}, options=${selectedOptions.join(',')}, threshold=${similarityThreshold}`);
+
+    // Use retry mechanism for network requests (no retry for large files to avoid timeout)
+    const shouldRetry = fileSizeMB < 10; // Only retry for files smaller than 10MB
     const response = await retryRequest(
-      () => api.post<ProcessFileResponse>('/process', requestData),
-      3,
-      1000
+      () => api.post<ProcessFileResponse>('/process', requestData, {
+        timeout: fileSizeMB > 10 ? 300000 : 120000, // 5 minutes for large files, 2 minutes for normal
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`Upload progress: ${percentCompleted}%`);
+          }
+        }
+      }),
+      shouldRetry ? 2 : 1, // Retry only for smaller files
+      2000
     );
     
+    console.log('Server response received successfully');
     return response.data;
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
@@ -316,13 +377,28 @@ export const processMergedFiles = async (
       ...(filterOptions && { filter_options: filterOptions })
     };
 
-    // Use retry mechanism for network requests
+    const totalSizeMB = files.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+    const requestSizeMB = JSON.stringify(requestData).length / (1024 * 1024);
+    console.log(`Sending merged request to server: ${requestSizeMB.toFixed(2)}MB (${files.length} files, total: ${totalSizeMB.toFixed(2)}MB)`);
+    console.log(`Request details: files=${files.map(f => f.name).join(', ')}, options=${selectedOptions.join(',')}, threshold=${similarityThreshold}`);
+
+    // Use retry mechanism for network requests (no retry for large files to avoid timeout)
+    const shouldRetry = totalSizeMB < 10; // Only retry for files smaller than 10MB total
     const response = await retryRequest(
-      () => api.post<ProcessFileResponse>('/process-merged', requestData),
-      3,
-      1000
+      () => api.post<ProcessFileResponse>('/process-merged', requestData, {
+        timeout: totalSizeMB > 10 ? 300000 : 120000, // 5 minutes for large files, 2 minutes for normal
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`reUpload progss: ${percentCompleted}%`);
+          }
+        }
+      }),
+      shouldRetry ? 2 : 1, // Retry only for smaller files
+      2000
     );
     
+    console.log('Server response received successfully');
     return response.data;
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
@@ -402,7 +478,11 @@ export const processMultipleFiles = async (
       removed_duplicate_answers: 0
     };
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileSizeMB = file.size / (1024 * 1024);
+      console.log(`Processing file ${i + 1}/${files.length}: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
+      
       try {
         // Process individual file
         const fileResult = await processFile(file, selectedOptions, similarityThreshold, filterOptions);

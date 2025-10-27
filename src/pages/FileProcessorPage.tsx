@@ -134,10 +134,20 @@ function FileProcessorPage() {
       return
     }
 
+    // Check file sizes and warn user about large files
+    const totalSizeMB = uploadedFiles.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024);
+    const largeFiles = uploadedFiles.filter(file => file.size > 10 * 1024 * 1024);
+    
+    if (largeFiles.length > 0) {
+      console.warn(`Large files detected (${largeFiles.length}):`, largeFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`));
+    }
+    
+    console.log(`Starting file processing: ${uploadedFiles.length} file(s), Total size: ${totalSizeMB.toFixed(2)}MB`);
+
     setIsProcessing(true)
     setErrors([])
     setProcessingProgress(0)
-    setProcessingMessage('Preparing file for processing...')
+    setProcessingMessage(totalSizeMB > 10 ? 'Preparing large file for processing (this may take a while)...' : 'Preparing file for processing...')
 
     try {
       // Separate classification options from format options
@@ -263,11 +273,34 @@ function FileProcessorPage() {
         setErrors(prev => [...prev, errorState])
       }
     } catch (err) {
+      console.error('File processing error:', err);
+      
+      let errorMessage = 'An unexpected error occurred during processing';
+      let errorDetails = err instanceof Error ? err.message : 'Unknown error';
+      let errorCode = 'INTERNAL_ERROR';
+      
+      // Provide more specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('timeout') || err.message.includes('ECONNABORTED')) {
+          errorMessage = 'Processing timeout - file may be too large';
+          errorDetails = 'The server took too long to respond. Try uploading a smaller file or check your network connection.';
+          errorCode = 'TIMEOUT_ERROR';
+        } else if (err.message.includes('Network Error') || err.message.includes('ERR_NETWORK')) {
+          errorMessage = 'Network error - unable to reach server';
+          errorDetails = 'Please check if the server is running and your network connection is stable.';
+          errorCode = 'NETWORK_ERROR';
+        } else if (err.message.includes('413') || err.message.includes('too large')) {
+          errorMessage = 'File too large';
+          errorDetails = 'The uploaded file exceeds the maximum allowed size. Please try a smaller file.';
+          errorCode = 'FILE_TOO_LARGE';
+        }
+      }
+      
       const errorState = handleError(
         {
-          code: 'INTERNAL_ERROR',
-          message: 'An unexpected error occurred during processing',
-          details: err instanceof Error ? err.message : 'Unknown error'
+          code: errorCode,
+          message: errorMessage,
+          details: errorDetails
         },
         'File Processing',
         () => handleProcessFile()
