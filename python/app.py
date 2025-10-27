@@ -1106,21 +1106,11 @@ def process_merged_files():
     """
     Process multiple uploaded files as a single merged dataset
     
-    Expected JSON payload:
-    {
-        "files": [
-            {
-                "file_data": "base64_encoded_json_content",
-                "filename": "file1.json"
-            },
-            {
-                "file_data": "base64_encoded_json_content", 
-                "filename": "file2.json"
-            }
-        ],
-        "options": ["category", "institution", "year"],
-        "similarity_threshold": 0.8  // Optional: 0.0-1.0, default 0.8
-    }
+    Expected FormData payload:
+    - files: Multiple JSON files
+    - options: JSON string array ["category", "institution", "year"]
+    - similarity_threshold: float (0.0-1.0, default 0.8)
+    - filter_options: JSON string (optional)
     
     Returns:
     {
@@ -1144,69 +1134,56 @@ def process_merged_files():
             app.logger.info(f"Received process-merged request: {content_length_mb:.2f}MB from {request.remote_addr}")
         else:
             app.logger.info(f"Received process-merged request from {request.remote_addr}")
-        # Validate request
-        if not request.is_json:
+        
+        # Validate request - now expecting multipart/form-data
+        if 'files' not in request.files:
             return jsonify({
                 'success': False,
                 'error': {
-                    'code': 'INVALID_REQUEST',
-                    'message': 'Request must be JSON',
-                    'details': 'Content-Type must be application/json'
+                    'code': 'MISSING_FILES',
+                    'message': 'No files provided',
+                    'details': 'Please upload at least one JSON file'
                 }
             }), 400
         
-        data = request.get_json()
+        files = request.files.getlist('files')
         
-        # Validate required fields
-        required_fields = ['files', 'options']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'error': {
-                        'code': 'MISSING_FIELD',
-                        'message': f'Missing required field: {field}',
-                        'details': f'The field "{field}" is required in the request body'
-                    }
-                }), 400
-        
-        # Validate files array
-        files = data['files']
-        if not isinstance(files, list) or not files:
+        if not files or len(files) == 0:
             return jsonify({
                 'success': False,
                 'error': {
-                    'code': 'INVALID_FILES',
-                    'message': 'Files must be a non-empty array',
-                    'details': 'Provide at least one file to process'
+                    'code': 'EMPTY_FILES',
+                    'message': 'No files selected',
+                    'details': 'Please select at least one file to upload'
                 }
             }), 400
         
-        # Validate each file in the array
-        for i, file_info in enumerate(files):
-            if not isinstance(file_info, dict):
-                return jsonify({
-                    'success': False,
-                    'error': {
-                        'code': 'INVALID_FILE_FORMAT',
-                        'message': f'File {i+1} must be an object',
-                        'details': 'Each file must have file_data and filename fields'
-                    }
-                }), 400
-            
-            if 'file_data' not in file_info or 'filename' not in file_info:
-                return jsonify({
-                    'success': False,
-                    'error': {
-                        'code': 'MISSING_FILE_FIELDS',
-                        'message': f'File {i+1} missing required fields',
-                        'details': 'Each file must have file_data and filename fields'
-                    }
-                }), 400
+        # Get form data
+        if 'options' not in request.form:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'MISSING_FIELD',
+                    'message': 'Missing required field: options',
+                    'details': 'The field "options" is required'
+                }
+            }), 400
+        
+        # Parse options from JSON string
+        try:
+            options = json.loads(request.form['options'])
+        except json.JSONDecodeError:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OPTIONS_FORMAT',
+                    'message': 'Options must be a valid JSON array',
+                    'details': 'Please provide options as a JSON string'
+                }
+            }), 400
         
         # Validate options
         valid_options = {'category', 'institution', 'year', 'flatten'}
-        options = data['options']
         
         if not isinstance(options, list) or not options:
             return jsonify({
@@ -1229,11 +1206,11 @@ def process_merged_files():
                 }
             }), 400
         
-        # Get similarity threshold from request (default: 0.8)
-        similarity_threshold = data.get('similarity_threshold', 0.8)
+        # Get similarity threshold from form (default: 0.8)
+        similarity_threshold = float(request.form.get('similarity_threshold', 0.8))
         
         # Validate similarity threshold
-        if not isinstance(similarity_threshold, (int, float)) or not (0.0 <= similarity_threshold <= 1.0):
+        if not (0.0 <= similarity_threshold <= 1.0):
             return jsonify({
                 'success': False,
                 'error': {
@@ -1243,37 +1220,58 @@ def process_merged_files():
                 }
             }), 400
         
-        # Get filter options from request (optional)
-        filter_options = data.get('filter_options', None)
+        # Get filter options from form (optional)
+        filter_options = None
+        if 'filter_options' in request.form:
+            try:
+                filter_options = json.loads(request.form['filter_options'])
+            except json.JSONDecodeError:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_FILTER_OPTIONS',
+                        'message': 'Filter options must be valid JSON',
+                        'details': 'Please provide filter_options as a JSON string'
+                    }
+                }), 400
         
         # Merge all files into a single dataset
         merged_data = []
         total_file_size_mb = 0
         filenames = []
         
-        for file_info in files:
+        for file in files:
             try:
-                # Decode base64 data
-                json_content = base64.b64decode(file_info['file_data']).decode('utf-8')
-                file_data = json.loads(json_content)
+                # Read file content directly
+                file_content = file.read().decode('utf-8')
+                file_data = json.loads(file_content)
                 
                 # Validate individual file data
                 validated_data = validate_json_data(file_data)
                 merged_data.extend(validated_data)
                 
                 # Track file info
-                file_size_mb = len(file_info['file_data']) * 3 / 4 / 1024 / 1024
+                file_size_mb = len(file_content) / 1024 / 1024
                 total_file_size_mb += file_size_mb
-                filenames.append(file_info['filename'])
+                filenames.append(file.filename)
                 
-                app.logger.info(f"Merged file: {file_info['filename']} (~{file_size_mb:.1f}MB, {len(validated_data)} questions)")
+                app.logger.info(f"Merged file: {file.filename} (~{file_size_mb:.1f}MB, {len(validated_data)} questions)")
                 
+            except UnicodeDecodeError:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_ENCODING',
+                        'message': f'File {file.filename} must be UTF-8 encoded',
+                        'details': 'Please ensure all files are properly encoded'
+                    }
+                }), 400
             except json.JSONDecodeError as e:
                 return jsonify({
                     'success': False,
                     'error': {
                         'code': 'INVALID_JSON',
-                        'message': f'Invalid JSON in file {file_info["filename"]}: {str(e)}',
+                        'message': f'Invalid JSON in file {file.filename}: {str(e)}',
                         'details': 'Please ensure all files contain valid JSON data'
                     }
                 }), 400
@@ -1282,7 +1280,7 @@ def process_merged_files():
                     'success': False,
                     'error': {
                         'code': 'FILE_PROCESSING_ERROR',
-                        'message': f'Error processing file {file_info["filename"]}: {str(e)}',
+                        'message': f'Error processing file {file.filename}: {str(e)}',
                         'details': 'Please check the file format and try again'
                     }
                 }), 400
@@ -1369,13 +1367,11 @@ def process_file():
     """
     Process uploaded file with selected classification options
     
-    Expected JSON payload:
-    {
-        "file_data": "base64_encoded_json_content",
-        "filename": "original_filename.json",
-        "options": ["category", "institution", "year"],
-        "similarity_threshold": 0.8  // Optional: 0.0-1.0, default 0.8
-    }
+    Expected FormData payload:
+    - file: JSON file
+    - options: JSON string array ["category", "institution", "year"]
+    - similarity_threshold: float (0.0-1.0, default 0.8)
+    - filter_options: JSON string (optional)
     
     Returns:
     {
@@ -1399,35 +1395,56 @@ def process_file():
             app.logger.info(f"Received process request: {content_length_mb:.2f}MB from {request.remote_addr}")
         else:
             app.logger.info(f"Received process request from {request.remote_addr}")
-        # Validate request
-        if not request.is_json:
+        
+        # Validate request - now expecting multipart/form-data
+        if 'file' not in request.files:
             return jsonify({
                 'success': False,
                 'error': {
-                    'code': 'INVALID_REQUEST',
-                    'message': 'Request must be JSON',
-                    'details': 'Content-Type must be application/json'
+                    'code': 'MISSING_FILE',
+                    'message': 'No file provided',
+                    'details': 'Please upload a JSON file'
                 }
             }), 400
         
-        data = request.get_json()
+        file = request.files['file']
         
-        # Validate required fields
-        required_fields = ['file_data', 'filename', 'options']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'error': {
-                        'code': 'MISSING_FIELD',
-                        'message': f'Missing required field: {field}',
-                        'details': f'The field "{field}" is required in the request body'
-                    }
-                }), 400
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'EMPTY_FILENAME',
+                    'message': 'No file selected',
+                    'details': 'Please select a file to upload'
+                }
+            }), 400
+        
+        # Get form data
+        if 'options' not in request.form:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'MISSING_FIELD',
+                    'message': 'Missing required field: options',
+                    'details': 'The field "options" is required'
+                }
+            }), 400
+        
+        # Parse options from JSON string
+        try:
+            options = json.loads(request.form['options'])
+        except json.JSONDecodeError:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OPTIONS_FORMAT',
+                    'message': 'Options must be a valid JSON array',
+                    'details': 'Please provide options as a JSON string'
+                }
+            }), 400
         
         # Validate options
         valid_options = {'category', 'institution', 'year', 'flatten'}
-        options = data['options']
         
         if not isinstance(options, list) or not options:
             return jsonify({
@@ -1450,11 +1467,11 @@ def process_file():
                 }
             }), 400
         
-        # Get similarity threshold from request (default: 0.8)
-        similarity_threshold = data.get('similarity_threshold', 0.8)
+        # Get similarity threshold from form (default: 0.8)
+        similarity_threshold = float(request.form.get('similarity_threshold', 0.8))
         
         # Validate similarity threshold
-        if not isinstance(similarity_threshold, (int, float)) or not (0.0 <= similarity_threshold <= 1.0):
+        if not (0.0 <= similarity_threshold <= 1.0):
             return jsonify({
                 'success': False,
                 'error': {
@@ -1464,13 +1481,51 @@ def process_file():
                 }
             }), 400
         
-        # Get filter options from request (optional)
-        filter_options = data.get('filter_options', None)
+        # Get filter options from form (optional)
+        filter_options = None
+        if 'filter_options' in request.form:
+            try:
+                filter_options = json.loads(request.form['filter_options'])
+            except json.JSONDecodeError:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_FILTER_OPTIONS',
+                        'message': 'Filter options must be valid JSON',
+                        'details': 'Please provide filter_options as a JSON string'
+                    }
+                }), 400
+        
+        # Read file content
+        try:
+            file_content = file.read().decode('utf-8')
+            file_data_json = json.loads(file_content)
+        except UnicodeDecodeError:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_ENCODING',
+                    'message': 'File must be UTF-8 encoded',
+                    'details': 'Please ensure the file is properly encoded'
+                }
+            }), 400
+        except json.JSONDecodeError as e:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_JSON',
+                    'message': f'Invalid JSON format: {str(e)}',
+                    'details': 'Please ensure the file contains valid JSON'
+                }
+            }), 400
+        
+        # Convert to base64 for compatibility with existing process_file_data function
+        file_data_base64 = base64.b64encode(file_content.encode('utf-8')).decode('utf-8')
         
         # Process the file
         result = process_file_data(
-            file_data=data['file_data'],
-            filename=data['filename'],
+            file_data=file_data_base64,
+            filename=file.filename,
             options=options,
             similarity_threshold=similarity_threshold,
             filter_options=filter_options

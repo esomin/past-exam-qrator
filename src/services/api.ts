@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { ProcessFileRequest, ProcessFileResponse, ApiError, NetworkError, ValidationError } from '../types';
+import type { ProcessFileResponse, ApiError, NetworkError, ValidationError } from '../types';
 
 // Environment-based API base URL configuration
 const getApiBaseUrl = (): string => {
@@ -54,7 +54,7 @@ const handleApiError = (error: AxiosError): ApiError | NetworkError => {
     // Network error - no response received
     let errorMessage = 'Unable to connect to the server. Please check your connection and try again.';
     let errorDetails = error.message;
-    
+
     // Provide more specific error messages based on error code
     if (error.code === 'ECONNABORTED') {
       errorMessage = 'Request timeout. The file may be too large or the server is taking too long to respond.';
@@ -66,7 +66,7 @@ const handleApiError = (error: AxiosError): ApiError | NetworkError => {
       errorMessage = 'Request timeout. The operation took too long to complete.';
       errorDetails = 'This may be due to a large file size or slow network connection.';
     }
-    
+
     const networkError: NetworkError = {
       code: 'NETWORK_ERROR',
       message: errorMessage,
@@ -88,7 +88,7 @@ const handleApiError = (error: AxiosError): ApiError | NetworkError => {
 // Client-side validation utilities
 const validateFile = (file: File): ValidationError[] => {
   const errors: ValidationError[] = [];
-  
+
   // File type validation
   if (!file.type.includes('json') && !file.name.endsWith('.json')) {
     errors.push({
@@ -97,13 +97,13 @@ const validateFile = (file: File): ValidationError[] => {
       code: 'INVALID_FILE_TYPE'
     });
   }
-  
+
   // File size validation (50MB limit - increased for larger files)
   const maxSize = 50 * 1024 * 1024; // 50MB
   const fileSizeMB = file.size / (1024 * 1024);
-  
+
   console.log(`File validation: ${file.name}, Size: ${fileSizeMB.toFixed(2)}MB`);
-  
+
   if (file.size > maxSize) {
     errors.push({
       field: 'file',
@@ -111,12 +111,12 @@ const validateFile = (file: File): ValidationError[] => {
       code: 'FILE_TOO_LARGE'
     });
   }
-  
+
   // Warning for large files (over 10MB)
   if (file.size > 10 * 1024 * 1024 && file.size <= maxSize) {
     console.warn(`Large file detected: ${file.name} (${fileSizeMB.toFixed(2)}MB). Processing may take longer.`);
   }
-  
+
   // File name validation
   if (file.name.length > 255) {
     errors.push({
@@ -125,14 +125,14 @@ const validateFile = (file: File): ValidationError[] => {
       code: 'FILENAME_TOO_LONG'
     });
   }
-  
+
   return errors;
 };
 
 const validateProcessingOptions = (options: string[]): ValidationError[] => {
   const errors: ValidationError[] = [];
   const validOptions = ['category', 'institution', 'year'];
-  
+
   if (!Array.isArray(options) || options.length === 0) {
     errors.push({
       field: 'options',
@@ -141,7 +141,7 @@ const validateProcessingOptions = (options: string[]): ValidationError[] => {
     });
     return errors;
   }
-  
+
   const invalidOptions = options.filter(option => !validOptions.includes(option));
   if (invalidOptions.length > 0) {
     errors.push({
@@ -150,7 +150,7 @@ const validateProcessingOptions = (options: string[]): ValidationError[] => {
       code: 'INVALID_OPTIONS'
     });
   }
-  
+
   return errors;
 };
 
@@ -161,40 +161,27 @@ const retryRequest = async <T>(
   delay: number = 1000
 ): Promise<T> => {
   let lastError: Error;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await requestFn();
     } catch (error) {
       lastError = error as Error;
-      
+
       // Only retry on network errors
       if (error instanceof Error && error.message.includes('NETWORK_ERROR') && attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
         continue;
       }
-      
+
       throw error;
     }
   }
-  
+
   throw lastError!;
 };
 
-// Convert File to base64 string
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Remove the data:application/json;base64, prefix
-      const base64 = result.split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
+// Note: fileToBase64 function removed - now using FormData for better performance
 
 // API Functions
 
@@ -234,44 +221,32 @@ export const processFile = async (
       };
     }
 
-    // Convert file to base64 with error handling
-    let fileData: string;
+    // Use FormData instead of base64 for better performance
     const fileSizeMB = file.size / (1024 * 1024);
-    console.log(`Starting file conversion: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
-    
-    try {
-      fileData = await fileToBase64(file);
-      const base64SizeMB = (fileData.length * 3 / 4) / (1024 * 1024);
-      console.log(`File converted to base64: ${base64SizeMB.toFixed(2)}MB`);
-    } catch (error) {
-      console.error('File read error:', error);
-      return {
-        success: false,
-        error: {
-          code: 'FILE_READ_ERROR',
-          message: 'Failed to read the uploaded file',
-          details: error instanceof Error ? error.message : 'Unknown file read error'
-        },
-      };
+    console.log(`Preparing file upload: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('options', JSON.stringify(selectedOptions));
+    formData.append('similarity_threshold', similarityThreshold.toString());
+    if (filterOptions) {
+      formData.append('filter_options', JSON.stringify(filterOptions));
     }
 
-    const requestData: ProcessFileRequest = {
-      file_data: fileData,
-      filename: file.name,
-      options: selectedOptions,
-      similarity_threshold: similarityThreshold,
-      ...(filterOptions && { filter_options: filterOptions })
-    };
-
-    const requestSizeMB = JSON.stringify(requestData).length / (1024 * 1024);
-    console.log(`Sending request to server: ${requestSizeMB.toFixed(2)}MB`);
+    console.log(`Sending request to server: ${fileSizeMB.toFixed(2)}MB`);
     console.log(`Request details: file=${file.name}, options=${selectedOptions.join(',')}, threshold=${similarityThreshold}`);
+
+    // Start timing
+    const startTime = Date.now();
 
     // Use retry mechanism for network requests (no retry for large files to avoid timeout)
     const shouldRetry = fileSizeMB < 10; // Only retry for files smaller than 10MB
     const response = await retryRequest(
-      () => api.post<ProcessFileResponse>('/process', requestData, {
+      () => api.post<ProcessFileResponse>('/process', formData, {
         timeout: fileSizeMB > 10 ? 300000 : 120000, // 5 minutes for large files, 2 minutes for normal
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -285,7 +260,11 @@ export const processFile = async (
       shouldRetry ? 2 : 1, // Retry only for smaller files
       2000
     );
-    
+
+    // Calculate total processing time
+    const endTime = Date.now();
+    const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+    console.log(`✅ Processing completed in ${totalTime}s`);
     console.log('Server response received successfully');
     return response.data;
   } catch (error) {
@@ -354,44 +333,34 @@ export const processMergedFiles = async (
       };
     }
 
-    // Convert all files to base64
-    const fileDataArray = [];
-    for (const file of files) {
-      try {
-        const fileData = await fileToBase64(file);
-        fileDataArray.push({
-          file_data: fileData,
-          filename: file.name
-        });
-      } catch (error) {
-        return {
-          success: false,
-          error: {
-            code: 'FILE_READ_ERROR',
-            message: `Failed to read file: ${file.name}`,
-            details: error instanceof Error ? error.message : 'Unknown file read error'
-          },
-        };
-      }
+    // Use FormData instead of base64 for better performance
+    const totalSizeMB = files.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+    console.log(`Preparing merged file upload: ${files.length} files, total: ${totalSizeMB.toFixed(2)}MB`);
+
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    formData.append('options', JSON.stringify(selectedOptions));
+    formData.append('similarity_threshold', similarityThreshold.toString());
+    if (filterOptions) {
+      formData.append('filter_options', JSON.stringify(filterOptions));
     }
 
-    const requestData = {
-      files: fileDataArray,
-      options: selectedOptions,
-      similarity_threshold: similarityThreshold,
-      ...(filterOptions && { filter_options: filterOptions })
-    };
-
-    const totalSizeMB = files.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
-    const requestSizeMB = JSON.stringify(requestData).length / (1024 * 1024);
-    console.log(`Sending merged request to server: ${requestSizeMB.toFixed(2)}MB (${files.length} files, total: ${totalSizeMB.toFixed(2)}MB)`);
+    console.log(`Sending merged request to server: ${totalSizeMB.toFixed(2)}MB (${files.length} files)`);
     console.log(`Request details: files=${files.map(f => f.name).join(', ')}, options=${selectedOptions.join(',')}, threshold=${similarityThreshold}`);
+
+    // Start timing
+    const startTime = Date.now();
 
     // Use retry mechanism for network requests (no retry for large files to avoid timeout)
     const shouldRetry = totalSizeMB < 10; // Only retry for files smaller than 10MB total
     const response = await retryRequest(
-      () => api.post<ProcessFileResponse>('/process-merged', requestData, {
+      () => api.post<ProcessFileResponse>('/process-merged', formData, {
         timeout: totalSizeMB > 10 ? 300000 : 120000, // 5 minutes for large files, 2 minutes for normal
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -405,7 +374,11 @@ export const processMergedFiles = async (
       shouldRetry ? 2 : 1, // Retry only for smaller files
       2000
     );
-    
+
+    // Calculate total processing time
+    const endTime = Date.now();
+    const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+    console.log(`✅ Processing completed in ${totalTime}s`);
     console.log('Server response received successfully');
     return response.data;
   } catch (error) {
@@ -487,11 +460,14 @@ export const processMultipleFiles = async (
       removed_duplicate_answers: 0
     };
 
+    // Start timing
+    const startTime = Date.now();
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const fileSizeMB = file.size / (1024 * 1024);
       console.log(`Processing file ${i + 1}/${files.length}: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
-      
+
       try {
         // Process individual file with progress callback
         const fileResult = await processFile(file, selectedOptions, similarityThreshold, filterOptions, (progress, message) => {
@@ -501,7 +477,7 @@ export const processMultipleFiles = async (
             onProgress(fileProgress, `${message} (${i + 1}/${files.length})`);
           }
         });
-        
+
         if (fileResult.success && fileResult.results) {
           // Add source filename to each result
           const resultsWithSource = fileResult.results.map(result => ({
@@ -509,14 +485,14 @@ export const processMultipleFiles = async (
             sourceFilename: file.name
           }));
           allResults.push(...resultsWithSource);
-          
+
           totalProcessedItems += fileResult.processed_items || 0;
           totalOriginalQuestions += fileResult.original_questions || 0;
-          
+
           // Combine statistics
           if (fileResult.statistics) {
             Object.keys(combinedStats).forEach(key => {
-              combinedStats[key as keyof typeof combinedStats] += 
+              combinedStats[key as keyof typeof combinedStats] +=
                 fileResult.statistics![key as keyof typeof combinedStats] || 0;
             });
           }
@@ -541,6 +517,11 @@ export const processMultipleFiles = async (
       }
     }
 
+    // Calculate total processing time
+    const endTime = Date.now();
+    const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+    console.log(`✅ All files processing completed in ${totalTime}s`);
+
     return {
       success: true,
       results: allResults,
@@ -548,7 +529,7 @@ export const processMultipleFiles = async (
       original_questions: totalOriginalQuestions,
       statistics: combinedStats
     };
-    
+
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
     return {
@@ -570,7 +551,7 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
     // Use retry mechanism for bulk download requests
     const response = await retryRequest(
       () => {
-        return api.post('/download-multiple', { 
+        return api.post('/download-multiple', {
           result_ids: resultIds,
           archive_name: archiveName
         }, {
@@ -590,7 +571,7 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
     // Create blob URL and trigger download
     const blob = new Blob([response.data], { type: 'application/zip' });
     const url = window.URL.createObjectURL(blob);
-    
+
     try {
       // Create temporary link element and trigger download
       const link = document.createElement('a');
@@ -599,7 +580,7 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
     } finally {
@@ -608,7 +589,7 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
     }
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
-    
+
     // Provide more specific error messages for bulk downloads
     let errorMessage = apiError.message;
     if (apiError.code === 'NETWORK_ERROR') {
@@ -616,7 +597,7 @@ export const downloadMultipleFiles = async (resultIds: string[], archiveName: st
     } else if (apiError.code === 'FILE_NOT_FOUND') {
       errorMessage = 'Some of the requested files are no longer available. They may have expired.';
     }
-    
+
     throw new Error(errorMessage);
   }
 };
@@ -649,7 +630,7 @@ export const downloadFile = async (downloadId: string, filename: string): Promis
     // Create blob URL and trigger download
     const blob = new Blob([response.data], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
-    
+
     try {
       // Create temporary link element and trigger download
       const link = document.createElement('a');
@@ -658,7 +639,7 @@ export const downloadFile = async (downloadId: string, filename: string): Promis
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
     } finally {
@@ -667,7 +648,7 @@ export const downloadFile = async (downloadId: string, filename: string): Promis
     }
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
-    
+
     // Provide more specific error messages for downloads
     let errorMessage = apiError.message;
     if (apiError.code === 'NETWORK_ERROR') {
@@ -675,7 +656,7 @@ export const downloadFile = async (downloadId: string, filename: string): Promis
     } else if (apiError.code === 'FILE_NOT_FOUND') {
       errorMessage = 'The requested file is no longer available. It may have expired.';
     }
-    
+
     throw new Error(errorMessage);
   }
 };
@@ -722,9 +703,9 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
 
     return response.data;
   } catch (error) {
-    
+
     const apiError = handleApiError(error as AxiosError);
-    
+
     // Provide more specific error messages for data fetch
     let errorMessage = apiError.message;
     if (apiError.code === 'NETWORK_ERROR') {
@@ -732,7 +713,7 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
     } else if (apiError.code === 'FILE_NOT_FOUND') {
       errorMessage = 'The requested data is no longer available. It may have expired.';
     }
-    
+
     throw new Error(errorMessage);
   }
 };
@@ -767,7 +748,7 @@ export const downloadMarkdownFile = async (downloadId: string, filename: string)
     // Create blob URL and trigger download
     const blob = new Blob([response.data], { type: 'text/markdown' });
     const blobUrl = window.URL.createObjectURL(blob);
-    
+
     try {
       // Create temporary link element and trigger download
       const link = document.createElement('a');
@@ -776,7 +757,7 @@ export const downloadMarkdownFile = async (downloadId: string, filename: string)
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
     } finally {
@@ -785,7 +766,7 @@ export const downloadMarkdownFile = async (downloadId: string, filename: string)
     }
   } catch (error) {
     const apiError = handleApiError(error as AxiosError);
-    
+
     // Provide more specific error messages for downloads
     let errorMessage = apiError.message;
     if (apiError.code === 'NETWORK_ERROR') {
@@ -793,7 +774,7 @@ export const downloadMarkdownFile = async (downloadId: string, filename: string)
     } else if (apiError.code === 'FILE_NOT_FOUND') {
       errorMessage = 'The requested file is no longer available. It may have expired.';
     }
-    
+
     throw new Error(errorMessage);
   }
 };
