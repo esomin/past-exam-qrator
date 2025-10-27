@@ -543,7 +543,7 @@ function FileProcessorPage() {
               <div className="filter-options-section">
                 <h3 className="filter-options-title">데이터 필터 옵션</h3>
                 <p className="filter-options-description">
-                  처리 후 특정 조건에 맞는 데이터만 추출하여 결과 파일을 생성합니다.
+                  특정 조건에 맞는 데이터만 추출하여 처리 후 결과 파일을 생성합니다.
                 </p>
                 
                 {/* Category Filter */}
@@ -558,7 +558,7 @@ function FileProcessorPage() {
                     />
                     <span className="filter-option-text">
                       <strong>카테고리 필터</strong>
-                      <span className="filter-option-desc">category1 또는 category2에 특정 키워드가 포함된 데이터만 추출</span>
+                      <span className="filter-option-desc">원본 데이터의 categoryTitle, title, text에 특정 키워드가 포함된 데이터만 추출</span>
                     </span>
                   </label>
                   {enableCategoryFilter && (
@@ -587,7 +587,7 @@ function FileProcessorPage() {
                     />
                     <span className="filter-option-text">
                       <strong>연도 필터</strong>
-                      <span className="filter-option-desc">특정 연도의 데이터만 추출</span>
+                      <span className="filter-option-desc">원본 데이터의 solve 속성에 특정 연도가 포함된 데이터만 추출</span>
                     </span>
                   </label>
                   {enableYearFilter && (
@@ -661,14 +661,14 @@ function FileProcessorPage() {
                     />
                     <span className="filter-option-text">
                       <strong>기관 필터</strong>
-                      <span className="filter-option-desc">특정 기관의 데이터만 추출</span>
+                      <span className="filter-option-desc">원본 데이터의 solve 속성에 특정 기관명이 포함된 데이터만 추출</span>
                     </span>
                   </label>
                   {enableInstitutionFilter && (
                     <div className="filter-input-group">
                       <input
                         type="text"
-                        placeholder="기관명 입력 (정확히 일치하는 데이터만 추출)"
+                        placeholder="기관명 입력 (solve 속성에 포함된 데이터 추출)"
                         value={institutionFilterKeyword}
                         onChange={(e) => setInstitutionFilterKeyword(e.target.value)}
                         disabled={isProcessing}

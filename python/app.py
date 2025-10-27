@@ -219,12 +219,59 @@ def determine_is_correct(title_type: str, answer_kind: str) -> Optional[bool]:
         return None
 
 
-def flatten_original_data(input_data: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
-    """원본 데이터를 플래튼하여 필요한 속성만 추출하고 통계 정보 반환"""
+def flatten_original_data(input_data: List[Dict[str, Any]], filter_options: Dict[str, Any] = None) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """원본 데이터를 플래튼하여 필요한 속성만 추출하고 통계 정보 반환
+    
+    Args:
+        input_data: 원본 데이터
+        filter_options: 필터 옵션 (처리 전 적용)
+    """
     from add_category2_to_qn import add_category2_to_data
     
     # category2 추가
     data_with_category2 = add_category2_to_data(input_data)
+    
+    # 처리 전 필터링 적용
+    filtered_questions = []
+    
+    for question in data_with_category2:
+        should_include = True
+        
+        # 카테고리 필터 적용
+        if filter_options and filter_options.get('category_filter', {}).get('enabled', False):
+            keyword = filter_options['category_filter'].get('keyword', '').strip().lower()
+            if keyword:
+                category_title = (question.get('categoryTitle') or '').lower()
+                title = (question.get('title') or '').lower()
+                text = (question.get('text') or '').lower()
+                
+                if not (keyword in category_title or keyword in title or keyword in text):
+                    should_include = False
+        
+        # 연도 필터 적용 (solve 속성에서 검색)
+        if should_include and filter_options and filter_options.get('year_filter', {}).get('enabled', False):
+            years = filter_options['year_filter'].get('years', [])
+            if years:
+                solve = question.get('solve', '')
+                year_strings = [str(year).strip() for year in years if str(year).strip()]
+                # solve 속성에 해당 연도가 포함되어 있는지 확인
+                year_found = any(year_str in solve for year_str in year_strings)
+                if not year_found:
+                    should_include = False
+        
+        # 기관 필터 적용 (solve 속성에서 검색)
+        if should_include and filter_options and filter_options.get('institution_filter', {}).get('enabled', False):
+            keyword = filter_options['institution_filter'].get('keyword', '').strip()
+            if keyword:
+                solve = question.get('solve', '')
+                # solve 속성에 해당 기관명이 포함되어 있는지 확인
+                if keyword not in solve:
+                    should_include = False
+        
+        if should_include:
+            filtered_questions.append(question)
+    
+    data_with_category2 = filtered_questions
     
     flattened_data = []
     seen_ids = set()  # ID 중복 체크용
@@ -775,7 +822,7 @@ def validate_json_data(data: Any) -> List[Dict[str, Any]]:
 
 def apply_filters(data: List[Dict[str, Any]], filter_options: Dict[str, Any]) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
-    Apply filters to the processed data
+    Apply filters to the processed data (모든 필터는 처리 전에 적용되므로 이 함수는 통계만 반환)
     
     Args:
         data: List of processed data items
@@ -787,36 +834,8 @@ def apply_filters(data: List[Dict[str, Any]], filter_options: Dict[str, Any]) ->
     original_count = len(data)
     filtered_data = data.copy()
     
-    # Apply category filter
-    if filter_options.get('category_filter', {}).get('enabled', False):
-        keyword = filter_options['category_filter'].get('keyword', '').strip()
-        if keyword:
-            filtered_data = [
-                item for item in filtered_data
-                if (keyword.lower() in (item.get('category1', '') or '').lower() or
-                   keyword.lower() in (item.get('category2', '') or '').lower())
-            ]
-    
-    # Apply year filter
-    if filter_options.get('year_filter', {}).get('enabled', False):
-        years = filter_options['year_filter'].get('years', [])
-        if years:
-            # Convert years to strings for comparison
-            year_strings = [str(year).strip() for year in years if str(year).strip()]
-            if year_strings:
-                filtered_data = [
-                    item for item in filtered_data
-                    if str(item.get('year', '')).strip() in year_strings
-                ]
-    
-    # Apply institution filter
-    if filter_options.get('institution_filter', {}).get('enabled', False):
-        keyword = filter_options['institution_filter'].get('keyword', '').strip()
-        if keyword:
-            filtered_data = [
-                item for item in filtered_data
-                if str(item.get('institution', '')).strip() == keyword
-            ]
+    # 모든 필터는 처리 전(flatten_original_data)에 적용되므로
+    # 여기서는 데이터를 그대로 반환하고 통계만 생성
     
     filtered_count = len(filtered_data)
     filter_percentage = round((filtered_count / original_count * 100) if original_count > 0 else 0, 1)
@@ -888,7 +907,7 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
         
         # Memory-optimized conversion using resource manager
         def convert_chunk(chunk):
-            flattened_data, _ = flatten_original_data(chunk)
+            flattened_data, _ = flatten_original_data(chunk, filter_options)
             return flattened_data
         
         # Process in chunks if dataset is large
@@ -909,7 +928,7 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
                 'removed_duplicate_answers': removed_duplicate_answers
             }
         else:
-            flattened_data, stats = flatten_original_data(validated_data)
+            flattened_data, stats = flatten_original_data(validated_data, filter_options)
         
         # 분류 옵션에 따라 다른 처리
         results_data = {}
