@@ -769,7 +769,64 @@ def validate_json_data(data: Any) -> List[Dict[str, Any]]:
     return data
 
 
-def process_file_data(file_data: str, filename: str, options: List[str], similarity_threshold: float = 0.8) -> Dict[str, Any]:
+def apply_filters(data: List[Dict[str, Any]], filter_options: Dict[str, Any]) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Apply filters to the processed data
+    
+    Args:
+        data: List of processed data items
+        filter_options: Dictionary containing filter configurations
+        
+    Returns:
+        Tuple of (filtered_data, filter_statistics)
+    """
+    original_count = len(data)
+    filtered_data = data.copy()
+    
+    # Apply category filter
+    if filter_options.get('category_filter', {}).get('enabled', False):
+        keyword = filter_options['category_filter'].get('keyword', '').strip()
+        if keyword:
+            filtered_data = [
+                item for item in filtered_data
+                if (keyword.lower() in (item.get('category1', '') or '').lower() or
+                   keyword.lower() in (item.get('category2', '') or '').lower())
+            ]
+    
+    # Apply year filter
+    if filter_options.get('year_filter', {}).get('enabled', False):
+        years = filter_options['year_filter'].get('years', [])
+        if years:
+            # Convert years to strings for comparison
+            year_strings = [str(year).strip() for year in years if str(year).strip()]
+            if year_strings:
+                filtered_data = [
+                    item for item in filtered_data
+                    if str(item.get('year', '')).strip() in year_strings
+                ]
+    
+    # Apply institution filter
+    if filter_options.get('institution_filter', {}).get('enabled', False):
+        keyword = filter_options['institution_filter'].get('keyword', '').strip()
+        if keyword:
+            filtered_data = [
+                item for item in filtered_data
+                if str(item.get('institution', '')).strip() == keyword
+            ]
+    
+    filtered_count = len(filtered_data)
+    filter_percentage = round((filtered_count / original_count * 100) if original_count > 0 else 0, 1)
+    
+    filter_stats = {
+        'original_items': original_count,
+        'filtered_items': filtered_count,
+        'filter_percentage': filter_percentage
+    }
+    
+    return filtered_data, filter_stats
+
+
+def process_file_data(file_data: str, filename: str, options: List[str], similarity_threshold: float = 0.8, filter_options: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Process uploaded file data with selected classification options
     Memory-optimized version with resource management
@@ -865,6 +922,41 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
             
             results_data['category_deduplicated'] = category_deduplicated
         
+        # Apply filters if provided
+        filter_stats = None
+        if filter_options:
+            # Apply filters to all result types
+            for result_type, result_data in results_data.items():
+                if isinstance(result_data, dict):
+                    # For grouped data (category, institution, year)
+                    filtered_groups = {}
+                    total_original = 0
+                    total_filtered = 0
+                    
+                    for group_name, group_items in result_data.items():
+                        if isinstance(group_items, list):
+                            filtered_items, group_filter_stats = apply_filters(group_items, filter_options)
+                            if filtered_items:  # Only include groups with remaining items
+                                filtered_groups[group_name] = filtered_items
+                            total_original += group_filter_stats['original_items']
+                            total_filtered += group_filter_stats['filtered_items']
+                    
+                    results_data[result_type] = filtered_groups
+                    
+                    # Calculate overall filter statistics
+                    if not filter_stats and total_original > 0:
+                        filter_percentage = round((total_filtered / total_original * 100), 1)
+                        filter_stats = {
+                            'original_items': total_original,
+                            'filtered_items': total_filtered,
+                            'filter_percentage': filter_percentage
+                        }
+                        
+                elif isinstance(result_data, list):
+                    # For flat data (flatten)
+                    filtered_items, filter_stats = apply_filters(result_data, filter_options)
+                    results_data[result_type] = filtered_items
+        
         # 새로운 분류 결과를 API 형식으로 변환
         api_results = []
         
@@ -943,6 +1035,10 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
         # 카테고리 분류 시 중복 제거 통계 추가
         if category_stats:
             response_data['category_statistics'] = category_stats
+        
+        # 필터 통계 추가
+        if filter_stats:
+            response_data['filter_statistics'] = filter_stats
         
         return response_data
         
@@ -1091,6 +1187,9 @@ def process_merged_files():
                 }
             }), 400
         
+        # Get filter options from request (optional)
+        filter_options = data.get('filter_options', None)
+        
         # Merge all files into a single dataset
         merged_data = []
         total_file_size_mb = 0
@@ -1162,7 +1261,8 @@ def process_merged_files():
             file_data=base64.b64encode(json.dumps(merged_data).encode('utf-8')).decode('utf-8'),
             filename=merged_filename,
             options=options,
-            similarity_threshold=similarity_threshold
+            similarity_threshold=similarity_threshold,
+            filter_options=filter_options
         )
         
         # Add merge information to the response
@@ -1289,12 +1389,16 @@ def process_file():
                 }
             }), 400
         
+        # Get filter options from request (optional)
+        filter_options = data.get('filter_options', None)
+        
         # Process the file
         result = process_file_data(
             file_data=data['file_data'],
             filename=data['filename'],
             options=options,
-            similarity_threshold=similarity_threshold
+            similarity_threshold=similarity_threshold,
+            filter_options=filter_options
         )
         
         return jsonify(result)
@@ -1486,11 +1590,7 @@ def download_multiple_files():
                             
                             # Determine exclude columns based on result type
                             exclude_columns = []
-                            if 'year' in original_result.type:
-                                exclude_columns = ['year']
-                            elif 'institution' in original_result.type:
-                                exclude_columns = ['institution']
-                            elif original_result.type == 'category':
+                            if original_result.type == 'category':
                                 exclude_columns = ['category1']  # category2는 유지
                             elif original_result.type == 'category_deduplicated':
                                 exclude_columns = ['category1', 'isUnique', 'similarity', 'similarityCount', 'repId']  # category2는 유지

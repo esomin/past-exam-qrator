@@ -38,6 +38,22 @@ function FileProcessorPage() {
   } | null>(null)
   const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.8)
   const [mergeFiles, setMergeFiles] = useState<boolean>(false)
+  
+  // Filter options state
+  const [enableCategoryFilter, setEnableCategoryFilter] = useState<boolean>(false)
+  const [categoryFilterKeyword, setCategoryFilterKeyword] = useState<string>('')
+  const [enableYearFilter, setEnableYearFilter] = useState<boolean>(false)
+  const [selectedYears, setSelectedYears] = useState<string[]>([])
+  const [customYear, setCustomYear] = useState<string>('')
+  const [enableInstitutionFilter, setEnableInstitutionFilter] = useState<boolean>(false)
+  const [institutionFilterKeyword, setInstitutionFilterKeyword] = useState<string>('')
+  
+  // Filter statistics state
+  const [filterStatistics, setFilterStatistics] = useState<{
+    original_items: number
+    filtered_items: number
+    filter_percentage: number
+  } | null>(null)
 
   const { handleError } = useErrorHandler()
 
@@ -89,6 +105,15 @@ function FileProcessorPage() {
     setResults([])
     setStatistics(null)
     setCategoryStatistics(null)
+    setFilterStatistics(null)
+    // Reset filter options
+    setEnableCategoryFilter(false)
+    setCategoryFilterKeyword('')
+    setEnableYearFilter(false)
+    setSelectedYears([])
+    setCustomYear('')
+    setEnableInstitutionFilter(false)
+    setInstitutionFilterKeyword('')
   }, [])
 
   const handleOptionsChange = useCallback((options: string[]) => {
@@ -139,14 +164,30 @@ function FileProcessorPage() {
         await new Promise(resolve => setTimeout(resolve, 500))
       }
 
-      // Process with classification options only
+      // Prepare filter options
+      const filterOptions = {
+        category_filter: enableCategoryFilter ? {
+          enabled: true,
+          keyword: categoryFilterKeyword
+        } : { enabled: false },
+        year_filter: enableYearFilter ? {
+          enabled: true,
+          years: [...selectedYears, ...(customYear && !selectedYears.includes(customYear) ? [customYear] : [])]
+        } : { enabled: false },
+        institution_filter: enableInstitutionFilter ? {
+          enabled: true,
+          keyword: institutionFilterKeyword
+        } : { enabled: false }
+      }
+
+      // Process with classification options and filters
       let response;
       if (uploadedFiles.length === 1) {
-        response = await processFile(uploadedFiles[0], classificationOptions, similarityThreshold);
+        response = await processFile(uploadedFiles[0], classificationOptions, similarityThreshold, filterOptions);
       } else if (mergeFiles) {
-        response = await processMergedFiles(uploadedFiles, classificationOptions, similarityThreshold);
+        response = await processMergedFiles(uploadedFiles, classificationOptions, similarityThreshold, filterOptions);
       } else {
-        response = await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold);
+        response = await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold, filterOptions);
       }
 
       setProcessingProgress(100)
@@ -208,6 +249,11 @@ function FileProcessorPage() {
         if (response.category_statistics) {
           setCategoryStatistics(response.category_statistics)
         }
+        
+        // 필터 통계 정보 설정
+        if (response.filter_statistics) {
+          setFilterStatistics(response.filter_statistics)
+        }
       } else if (response.error) {
         const errorState = handleError(
           response.error,
@@ -232,7 +278,7 @@ function FileProcessorPage() {
       setProcessingProgress(0)
       setProcessingMessage('')
     }
-  }, [uploadedFiles, selectedOptions, handleError])
+  }, [uploadedFiles, selectedOptions, handleError, mergeFiles, similarityThreshold, enableCategoryFilter, categoryFilterKeyword, enableYearFilter, selectedYears, customYear, enableInstitutionFilter, institutionFilterKeyword])
 
   const handleSelectionChange = useCallback((resultId: string, selected: boolean) => {
     setResults(prev => prev.map(result =>
@@ -468,6 +514,146 @@ function FileProcessorPage() {
                 </div>
               )}
               
+              {/* Filter Options Section */}
+              <div className="filter-options-section">
+                <h3 className="filter-options-title">데이터 필터 옵션</h3>
+                <p className="filter-options-description">
+                  처리 후 특정 조건에 맞는 데이터만 추출하여 결과 파일을 생성합니다.
+                </p>
+                
+                {/* Category Filter */}
+                <div className="filter-option">
+                  <label className="filter-option-label">
+                    <input
+                      type="checkbox"
+                      checked={enableCategoryFilter}
+                      onChange={(e) => setEnableCategoryFilter(e.target.checked)}
+                      disabled={isProcessing}
+                      className="filter-option-checkbox"
+                    />
+                    <span className="filter-option-text">
+                      <strong>카테고리 필터</strong>
+                      <span className="filter-option-desc">category1 또는 category2에 특정 키워드가 포함된 데이터만 추출</span>
+                    </span>
+                  </label>
+                  {enableCategoryFilter && (
+                    <div className="filter-input-group">
+                      <input
+                        type="text"
+                        placeholder="검색할 카테고리 키워드 입력"
+                        value={categoryFilterKeyword}
+                        onChange={(e) => setCategoryFilterKeyword(e.target.value)}
+                        disabled={isProcessing}
+                        className="filter-input"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Year Filter */}
+                <div className="filter-option">
+                  <label className="filter-option-label">
+                    <input
+                      type="checkbox"
+                      checked={enableYearFilter}
+                      onChange={(e) => setEnableYearFilter(e.target.checked)}
+                      disabled={isProcessing}
+                      className="filter-option-checkbox"
+                    />
+                    <span className="filter-option-text">
+                      <strong>연도 필터</strong>
+                      <span className="filter-option-desc">특정 연도의 데이터만 추출</span>
+                    </span>
+                  </label>
+                  {enableYearFilter && (
+                    <div className="filter-input-group">
+                      <div className="year-checkboxes">
+                        {Array.from({ length: 14 }, (_, i) => 2013 + i).map(year => (
+                          <label key={year} className="year-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={selectedYears.includes(year.toString())}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedYears(prev => [...prev, year.toString()])
+                                } else {
+                                  setSelectedYears(prev => prev.filter(y => y !== year.toString()))
+                                }
+                              }}
+                              disabled={isProcessing}
+                              className="year-checkbox"
+                            />
+                            <span>{year}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="custom-year-input">
+                        <label className="year-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={customYear !== '' && selectedYears.includes(customYear)}
+                            onChange={(e) => {
+                              if (e.target.checked && customYear) {
+                                setSelectedYears(prev => [...prev.filter(y => y !== customYear), customYear])
+                              } else if (customYear) {
+                                setSelectedYears(prev => prev.filter(y => y !== customYear))
+                              }
+                            }}
+                            disabled={isProcessing || !customYear}
+                            className="year-checkbox"
+                          />
+                          <span>기타:</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="연도 입력"
+                          value={customYear}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setCustomYear(value)
+                            // Remove custom year from selected if input is cleared
+                            if (!value) {
+                              setSelectedYears(prev => prev.filter(y => y !== customYear))
+                            }
+                          }}
+                          disabled={isProcessing}
+                          className="custom-year-input-field"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Institution Filter */}
+                <div className="filter-option">
+                  <label className="filter-option-label">
+                    <input
+                      type="checkbox"
+                      checked={enableInstitutionFilter}
+                      onChange={(e) => setEnableInstitutionFilter(e.target.checked)}
+                      disabled={isProcessing}
+                      className="filter-option-checkbox"
+                    />
+                    <span className="filter-option-text">
+                      <strong>기관 필터</strong>
+                      <span className="filter-option-desc">특정 기관의 데이터만 추출</span>
+                    </span>
+                  </label>
+                  {enableInstitutionFilter && (
+                    <div className="filter-input-group">
+                      <input
+                        type="text"
+                        placeholder="기관명 입력 (정확히 일치하는 데이터만 추출)"
+                        value={institutionFilterKeyword}
+                        onChange={(e) => setInstitutionFilterKeyword(e.target.value)}
+                        disabled={isProcessing}
+                        className="filter-input"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
               <ProcessingOptions
                 options={processingOptions}
                 onOptionsChange={handleOptionsChange}
@@ -644,6 +830,23 @@ function FileProcessorPage() {
                       </div>
                     </div>
                   )}
+                  
+                  {filterStatistics && (
+                    <div className="processing-statistics" role="region" aria-labelledby="filter-stats-heading">
+                      <h3 id="filter-stats-heading" className="stats-title">필터 적용 통계</h3>
+                      <div className="stats-grid">
+                        <div className="stat-item">
+                          <span className="stat-label">필터 적용 전 데이터 수:</span>
+                          <span className="stat-value">{filterStatistics.original_items.toLocaleString()}개</span>
+                        </div>
+                        <div className="stat-item highlight">
+                          <span className="stat-label">필터 적용 후 데이터 수:</span>
+                          <span className="stat-value">{filterStatistics.filtered_items.toLocaleString()}개 ({filterStatistics.filter_percentage}%)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <ResultsDisplay
                     results={results}
                     onDownload={handleDownload}
