@@ -231,6 +231,10 @@ def flatten_original_data(input_data: List[Dict[str, Any]], filter_options: Dict
     # category2 추가
     data_with_category2 = add_category2_to_data(input_data)
     
+    # 필터링 전 원본 통계 계산
+    original_questions_before_filter = len(data_with_category2)
+    original_answers_before_filter = sum(len(q.get("answerSet", [])) for q in data_with_category2)
+    
     # 처리 전 필터링 적용
     filtered_questions = []
     
@@ -277,7 +281,7 @@ def flatten_original_data(input_data: List[Dict[str, Any]], filter_options: Dict
     seen_ids = set()  # ID 중복 체크용
     seen_questions = set()  # 문제 중복 체크용
     
-    # 통계 정보
+    # 통계 정보 (필터링 후 데이터 기준)
     original_questions = len(data_with_category2)
     original_answers = 0
     removed_duplicate_answers = 0  # 제거된 중복 선택지 수
@@ -357,9 +361,10 @@ def flatten_original_data(input_data: List[Dict[str, Any]], filter_options: Dict
     # 제거된 동일 문제 수 계산
     removed_duplicate_questions = original_questions - unique_questions
     
+    # 통계는 필터링 전 원본 데이터 기준으로 반환
     stats = {
-        'original_questions': original_questions,
-        'original_answers': original_answers,
+        'original_questions': original_questions_before_filter,
+        'original_answers': original_answers_before_filter,
         'result_questions': unique_questions,
         'result_answers': len(flattened_data),
         'duplicate_count': removed_duplicate_questions,  # 제거된 동일 문제 수
@@ -905,6 +910,10 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
         if len(validated_data) > max_questions:
             raise ProcessingError(f"Too many questions: {len(validated_data)} (max: {max_questions})")
         
+        # 필터링 전 원본 통계 미리 계산 (청크 처리 시 필요)
+        original_questions_total = len(validated_data)
+        original_answers_total = sum(len(q.get("answerSet", [])) for q in validated_data)
+        
         # Memory-optimized conversion using resource manager
         def convert_chunk(chunk):
             flattened_data, _ = flatten_original_data(chunk, filter_options)
@@ -914,14 +923,13 @@ def process_file_data(file_data: str, filename: str, options: List[str], similar
         if len(validated_data) > 5000:
             app.logger.info(f"Large dataset detected ({len(validated_data)} questions), processing in chunks")
             flattened_data = resource_manager.process_large_dataset(validated_data, convert_chunk)
-            # 청크 처리 시 통계는 별도 계산
-            original_answers = sum(len(q.get("answerSet", [])) for q in validated_data)
+            # 청크 처리 시 통계는 별도 계산 (필터링 전 원본 기준)
             unique_questions = len(set(item.get('question', '') for item in flattened_data))
-            removed_duplicate_answers = original_answers - len(flattened_data)
-            removed_duplicate_questions = len(validated_data) - unique_questions
+            removed_duplicate_answers = original_answers_total - len(flattened_data)
+            removed_duplicate_questions = original_questions_total - unique_questions
             stats = {
-                'original_questions': len(validated_data),
-                'original_answers': original_answers,
+                'original_questions': original_questions_total,
+                'original_answers': original_answers_total,
                 'result_questions': unique_questions,
                 'result_answers': len(flattened_data),
                 'duplicate_count': removed_duplicate_questions,
