@@ -338,16 +338,8 @@ function FileProcessorPage() {
       if (result.filename.endsWith('.md') && (result as any).sourceId) {
         const sourceId = (result as any).sourceId
 
-        // Determine exclude columns based on result type
-        let excludeColumns: string[] = []
-        if (result.type.includes('year')) {
-          excludeColumns = ['year'] // 연도별 분류에서는 year 컬럼 제외
-        } else if (result.type.includes('institution')) {
-          excludeColumns = ['institution'] // 기관별 분류에서는 institution 컬럼 제외
-        }
-
         // Download markdown file from backend
-        await downloadMarkdownFile(sourceId, result.filename, excludeColumns)
+        await downloadMarkdownFile(sourceId, result.filename)
       } else if (result.data && result.filename.endsWith('.md')) {
         // Handle markdown files with local data
         const blob = new Blob([result.data], { type: 'text/markdown' })
