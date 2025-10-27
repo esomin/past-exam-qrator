@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import type { ProcessFileResponse, ApiError, NetworkError, ValidationError } from '../types';
+import { throttle } from '../utils/throttle';
 
 // Environment-based API base URL configuration
 const getApiBaseUrl = (): string => {
@@ -239,6 +240,14 @@ export const processFile = async (
     // Start timing
     const startTime = Date.now();
 
+    // Throttle progress updates to reduce UI re-renders (100ms interval)
+    const throttledProgress = throttle((progress: number, message: string) => {
+      console.log(`Upload progress: ${progress}%`);
+      if (onProgress) {
+        onProgress(progress, message);
+      }
+    }, 100);
+
     // Use retry mechanism for network requests (no retry for large files to avoid timeout)
     const shouldRetry = fileSizeMB < 10; // Only retry for files smaller than 10MB
     const response = await retryRequest(
@@ -250,10 +259,7 @@ export const processFile = async (
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            console.log(`Upload progress: ${percentCompleted}%`);
-            if (onProgress) {
-              onProgress(percentCompleted, 'Uploading file to server...');
-            }
+            throttledProgress(percentCompleted, 'Uploading file to server...');
           }
         }
       }),
@@ -353,6 +359,14 @@ export const processMergedFiles = async (
     // Start timing
     const startTime = Date.now();
 
+    // Throttle progress updates to reduce UI re-renders (100ms interval)
+    const throttledProgress = throttle((progress: number, message: string) => {
+      console.log(`Upload progress: ${progress}%`);
+      if (onProgress) {
+        onProgress(progress, message);
+      }
+    }, 100);
+
     // Use retry mechanism for network requests (no retry for large files to avoid timeout)
     const shouldRetry = totalSizeMB < 10; // Only retry for files smaller than 10MB total
     const response = await retryRequest(
@@ -364,10 +378,7 @@ export const processMergedFiles = async (
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            console.log(`Upload progress: ${percentCompleted}%`);
-            if (onProgress) {
-              onProgress(percentCompleted, 'Uploading files to server...');
-            }
+            throttledProgress(percentCompleted, 'Uploading files to server...');
           }
         }
       }),
