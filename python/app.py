@@ -1674,9 +1674,6 @@ def convert_to_markdown(download_id: str):
     Args:
         download_id: UUID of the processed file
         
-    Query parameters:
-        exclude_columns: Comma-separated list of columns to exclude
-        
     Returns:
         Markdown file download or error response
     """
@@ -1694,11 +1691,8 @@ def convert_to_markdown(download_id: str):
         
         result = app.stored_results[download_id]
         
-        # Get exclude columns from query parameters
-        exclude_columns_param = request.args.get('exclude_columns', '')
-        exclude_columns = [col.strip() for col in exclude_columns_param.split(',') if col.strip()]
-        
-        # For category classification, automatically exclude category columns
+        # Automatically exclude columns based on classification type
+        exclude_columns = []
         if result.type == 'category':
             exclude_columns.extend(['category1'])  # category2는 유지
         elif result.type == 'category_deduplicated':

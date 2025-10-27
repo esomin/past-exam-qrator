@@ -645,20 +645,14 @@ export const fetchJsonData = async (downloadId: string): Promise<any> => {
 /**
  * Download markdown file converted from JSON data
  */
-export const downloadMarkdownFile = async (downloadId: string, filename: string, excludeColumns: string[] = []): Promise<void> => {
+export const downloadMarkdownFile = async (downloadId: string, filename: string): Promise<void> => {
   try {
     // Validate inputs
     if (!downloadId || !filename) {
       throw new Error('Download ID and filename are required');
     }
 
-    // Prepare query parameters
-    const params = new URLSearchParams();
-    if (excludeColumns.length > 0) {
-      params.append('exclude_columns', excludeColumns.join(','));
-    }
-
-    const url = `/convert-to-markdown/${downloadId}${params.toString() ? `?${params.toString()}` : ''}`;
+    const url = `/convert-to-markdown/${downloadId}`;
 
     // Use retry mechanism for download requests
     const response = await retryRequest(
