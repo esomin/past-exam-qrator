@@ -11,7 +11,7 @@ export function throttle<T extends (...args: any[]) => void>(
   delay: number
 ): (...args: Parameters<T>) => void {
   let lastCall = 0;
-  let timeoutId: NodeJS.Timeout | null = null;
+  let timeoutId: number | null = null;
 
   return (...args: Parameters<T>) => {
     const now = Date.now();
@@ -23,10 +23,10 @@ export function throttle<T extends (...args: any[]) => void>(
       func(...args);
     } else {
       // Schedule execution for later
-      if (timeoutId) {
+      if (timeoutId !== null) {
         clearTimeout(timeoutId);
       }
-      timeoutId = setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         lastCall = Date.now();
         func(...args);
         timeoutId = null;
@@ -47,13 +47,13 @@ export function debounce<T extends (...args: any[]) => void>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
-  let timeoutId: NodeJS.Timeout | null = null;
+  let timeoutId: number | null = null;
 
   return (...args: Parameters<T>) => {
-    if (timeoutId) {
+    if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }
-    timeoutId = setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       func(...args);
       timeoutId = null;
     }, delay);
