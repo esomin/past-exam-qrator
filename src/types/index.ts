@@ -72,11 +72,18 @@ export interface CategoryStatistics {
   unique_percentage: number;
 }
 
+export interface FilterStatistics {
+  original_items: number;
+  filtered_items: number;
+  filter_percentage: number;
+}
+
 export interface ProcessFileResponse {
   success: boolean;
   results?: ProcessingResultInfo[];
   statistics?: ProcessingStatistics;
   category_statistics?: CategoryStatistics;
+  filter_statistics?: FilterStatistics;
   processed_items?: number;
   original_questions?: number;
   error?: ApiError;
