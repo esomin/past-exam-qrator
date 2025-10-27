@@ -28,7 +28,7 @@ function FileProcessorPage() {
     duplicate_count: number
     removed_duplicate_answers: number
   } | null>(null)
-  
+
   const [categoryStatistics, setCategoryStatistics] = useState<{
     total_items: number
     duplicate_items: number
@@ -38,7 +38,7 @@ function FileProcessorPage() {
   } | null>(null)
   const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.8)
   const [mergeFiles, setMergeFiles] = useState<boolean>(false)
-  
+
   // Filter options state
   const [enableCategoryFilter, setEnableCategoryFilter] = useState<boolean>(false)
   const [categoryFilterKeyword, setCategoryFilterKeyword] = useState<string>('')
@@ -47,7 +47,7 @@ function FileProcessorPage() {
   const [customYear, setCustomYear] = useState<string>('')
   const [enableInstitutionFilter, setEnableInstitutionFilter] = useState<boolean>(false)
   const [institutionFilterKeyword, setInstitutionFilterKeyword] = useState<string>('')
-  
+
   // Filter statistics state
   const [filterStatistics, setFilterStatistics] = useState<{
     original_items: number
@@ -137,11 +137,11 @@ function FileProcessorPage() {
     // Check file sizes and warn user about large files
     const totalSizeMB = uploadedFiles.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024);
     const largeFiles = uploadedFiles.filter(file => file.size > 10 * 1024 * 1024);
-    
+
     if (largeFiles.length > 0) {
       console.warn(`Large files detected (${largeFiles.length}):`, largeFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`));
     }
-    
+
     console.log(`Starting file processing: ${uploadedFiles.length} file(s), Total size: ${totalSizeMB.toFixed(2)}MB`);
 
     setIsProcessing(true)
@@ -158,20 +158,10 @@ function FileProcessorPage() {
         ['json', 'markdown'].includes(opt)
       )
 
-      const progressSteps = [
-        { progress: 10, message: 'Uploading file to server...' },
-        { progress: 30, message: 'Parsing JSON data...' },
-        { progress: 50, message: uploadedFiles.length > 1 && mergeFiles 
-          ? `Merging ${uploadedFiles.length} files and processing ${classificationOptions.length} classification${classificationOptions.length > 1 ? 's' : ''}...`
-          : `Processing ${classificationOptions.length} classification${classificationOptions.length > 1 ? 's' : ''}...` },
-        { progress: 80, message: 'Generating output files...' },
-        { progress: 95, message: 'Finalizing results...' }
-      ]
-
-      for (const step of progressSteps) {
-        setProcessingProgress(step.progress)
-        setProcessingMessage(step.message)
-        await new Promise(resolve => setTimeout(resolve, 500))
+      // Progress callback for real-time upload progress
+      const handleProgress = (progress: number, message: string) => {
+        setProcessingProgress(progress)
+        setProcessingMessage(message)
       }
 
       // Prepare filter options
@@ -193,13 +183,14 @@ function FileProcessorPage() {
       // Process with classification options and filters
       let response;
       if (uploadedFiles.length === 1) {
-        response = await processFile(uploadedFiles[0], classificationOptions, similarityThreshold, filterOptions);
+        response = await processFile(uploadedFiles[0], classificationOptions, similarityThreshold, filterOptions, handleProgress);
       } else if (mergeFiles) {
-        response = await processMergedFiles(uploadedFiles, classificationOptions, similarityThreshold, filterOptions);
+        response = await processMergedFiles(uploadedFiles, classificationOptions, similarityThreshold, filterOptions, handleProgress);
       } else {
-        response = await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold, filterOptions);
+        response = await processMultipleFiles(uploadedFiles, classificationOptions, similarityThreshold, filterOptions, handleProgress);
       }
 
+      // After upload completes (100%), processing is done
       setProcessingProgress(100)
       setProcessingMessage('Processing complete!')
 
@@ -254,12 +245,12 @@ function FileProcessorPage() {
         if (response.statistics) {
           setStatistics(response.statistics)
         }
-        
+
         // 카테고리 통계 정보 설정
         if (response.category_statistics) {
           setCategoryStatistics(response.category_statistics)
         }
-        
+
         // 필터 통계 정보 설정
         if (response.filter_statistics) {
           setFilterStatistics(response.filter_statistics)
@@ -274,11 +265,11 @@ function FileProcessorPage() {
       }
     } catch (err) {
       console.error('File processing error:', err);
-      
+
       let errorMessage = 'An unexpected error occurred during processing';
       let errorDetails = err instanceof Error ? err.message : 'Unknown error';
       let errorCode = 'INTERNAL_ERROR';
-      
+
       // Provide more specific error messages
       if (err instanceof Error) {
         if (err.message.includes('timeout') || err.message.includes('ECONNABORTED')) {
@@ -295,7 +286,7 @@ function FileProcessorPage() {
           errorCode = 'FILE_TOO_LARGE';
         }
       }
-      
+
       const errorState = handleError(
         {
           code: errorCode,
@@ -531,21 +522,21 @@ function FileProcessorPage() {
                     </label>
                   </div>
                   <p className="merge-option-description">
-                    {mergeFiles 
+                    {mergeFiles
                       ? `${uploadedFiles.length}개 파일이 하나의 데이터셋으로 병합되어 처리됩니다. 선택한 각 옵션에 대해 하나씩의 결과 파일이 생성됩니다.`
                       : `${uploadedFiles.length}개 파일이 각각 개별적으로 처리됩니다. 각 파일과 옵션 조합마다 별도의 결과 파일이 생성됩니다.`
                     }
                   </p>
                 </div>
               )}
-              
+
               {/* Filter Options Section */}
               <div className="filter-options-section">
                 <h3 className="filter-options-title">데이터 필터 옵션</h3>
                 <p className="filter-options-description">
                   특정 조건에 맞는 데이터만 추출하여 처리 후 결과 파일을 생성합니다.
                 </p>
-                
+
                 {/* Category Filter */}
                 <div className="filter-option">
                   <label className="filter-option-label">
@@ -678,14 +669,14 @@ function FileProcessorPage() {
                   )}
                 </div>
               </div>
-              
+
               <ProcessingOptions
                 options={processingOptions}
                 onOptionsChange={handleOptionsChange}
                 disabled={!serverAvailable}
                 isProcessing={isProcessing}
               />
-              
+
               {selectedOptions.includes('category') && (
                 <div className="similarity-threshold-section">
                   <h3 className="threshold-title">유사도 임계값 설정</h3>
@@ -751,12 +742,12 @@ function FileProcessorPage() {
                   </div>
                   <p className="threshold-description">
                     {similarityThreshold >= 0.9 ? '매우 엄격한 중복 검출 (거의 동일한 답변만 중복으로 판단)' :
-                     similarityThreshold >= 0.85 ? '엄격한 중복 검출 (매우 유사한 답변만 중복으로 판단)' :
-                     similarityThreshold >= 0.8 ? '권장 설정 (적절한 수준의 중복 검출)' :
-                     similarityThreshold >= 0.75 ? '보통 중복 검출 (어느 정도 유사한 답변도 중복으로 판단)' :
-                     similarityThreshold >= 0.7 ? '관대한 중복 검출 (상당히 다른 답변도 중복으로 판단)' :
-                     similarityThreshold >= 0.6 ? '매우 관대한 중복 검출 (약간의 유사성만으로도 중복 판단)' :
-                     '극도로 관대한 중복 검출 (최소한의 공통점만으로도 중복 판단)'}
+                      similarityThreshold >= 0.85 ? '엄격한 중복 검출 (매우 유사한 답변만 중복으로 판단)' :
+                        similarityThreshold >= 0.8 ? '권장 설정 (적절한 수준의 중복 검출)' :
+                          similarityThreshold >= 0.75 ? '보통 중복 검출 (어느 정도 유사한 답변도 중복으로 판단)' :
+                            similarityThreshold >= 0.7 ? '관대한 중복 검출 (상당히 다른 답변도 중복으로 판단)' :
+                              similarityThreshold >= 0.6 ? '매우 관대한 중복 검출 (약간의 유사성만으로도 중복 판단)' :
+                                '극도로 관대한 중복 검출 (최소한의 공통점만으로도 중복 판단)'}
                   </p>
                 </div>
               )}
@@ -790,9 +781,9 @@ function FileProcessorPage() {
                 )}
               </button>
               <p id="process-description" className="process-description">
-                {uploadedFiles.length === 1 
+                {uploadedFiles.length === 1
                   ? `Click to start processing your file with the selected classification options`
-                  : mergeFiles 
+                  : mergeFiles
                     ? `Click to start processing your ${uploadedFiles.length} files as a merged dataset with the selected classification options`
                     : `Click to start processing your ${uploadedFiles.length} files individually with the selected classification options`
                 }
@@ -835,11 +826,11 @@ function FileProcessorPage() {
                         <div className="stat-item highlight">
                           <span className="stat-label">제거된 동일 선택지 수:</span>
                           <span className="stat-value">{statistics.removed_duplicate_answers.toLocaleString()}개</span>
-                        </div> 
+                        </div>
                       </div>
                     </div>
                   )}
-                  
+
                   {categoryStatistics && (
                     <div className="processing-statistics" role="region" aria-labelledby="category-stats-heading">
                       <h3 id="category-stats-heading" className="stats-title">Category 중복 제거 통계</h3>
@@ -855,7 +846,7 @@ function FileProcessorPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {filterStatistics && (
                     <div className="processing-statistics" role="region" aria-labelledby="filter-stats-heading">
                       <h3 id="filter-stats-heading" className="stats-title">필터 적용 통계</h3>
@@ -871,7 +862,7 @@ function FileProcessorPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   <ResultsDisplay
                     results={results}
                     onDownload={handleDownload}
@@ -889,7 +880,7 @@ function FileProcessorPage() {
         isVisible={isProcessing}
         message={processingMessage}
         progress={processingProgress}
-        subMessage={uploadedFiles.length > 1 && mergeFiles 
+        subMessage={uploadedFiles.length > 1 && mergeFiles
           ? `Merging ${uploadedFiles.length} files • Processing ${selectedOptions.length} classification type${selectedOptions.length > 1 ? 's' : ''}`
           : `Processing ${selectedOptions.length} classification type${selectedOptions.length > 1 ? 's' : ''}`
         }

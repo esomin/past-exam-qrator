@@ -205,7 +205,8 @@ export const processFile = async (
   file: File,
   selectedOptions: string[],
   similarityThreshold: number = 0.8,
-  filterOptions?: any
+  filterOptions?: any,
+  onProgress?: (progress: number, message: string) => void
 ): Promise<ProcessFileResponse> => {
   try {
     // Client-side validation
@@ -275,6 +276,9 @@ export const processFile = async (
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             console.log(`Upload progress: ${percentCompleted}%`);
+            if (onProgress) {
+              onProgress(percentCompleted, 'Uploading file to server...');
+            }
           }
         }
       }),
@@ -300,7 +304,8 @@ export const processMergedFiles = async (
   files: File[],
   selectedOptions: string[],
   similarityThreshold: number = 0.8,
-  filterOptions?: any
+  filterOptions?: any,
+  onProgress?: (progress: number, message: string) => void
 ): Promise<ProcessFileResponse> => {
   try {
     // Validate files array
@@ -390,7 +395,10 @@ export const processMergedFiles = async (
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            console.log(`reUpload progss: ${percentCompleted}%`);
+            console.log(`Upload progress: ${percentCompleted}%`);
+            if (onProgress) {
+              onProgress(percentCompleted, 'Uploading files to server...');
+            }
           }
         }
       }),
@@ -416,7 +424,8 @@ export const processMultipleFiles = async (
   files: File[],
   selectedOptions: string[],
   similarityThreshold: number = 0.8,
-  filterOptions?: any
+  filterOptions?: any,
+  onProgress?: (progress: number, message: string) => void
 ): Promise<ProcessFileResponse> => {
   try {
     // Validate files array
@@ -484,8 +493,14 @@ export const processMultipleFiles = async (
       console.log(`Processing file ${i + 1}/${files.length}: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
       
       try {
-        // Process individual file
-        const fileResult = await processFile(file, selectedOptions, similarityThreshold, filterOptions);
+        // Process individual file with progress callback
+        const fileResult = await processFile(file, selectedOptions, similarityThreshold, filterOptions, (progress, message) => {
+          if (onProgress) {
+            // Distribute progress across all files
+            const fileProgress = Math.round((i / files.length) * 20 + (progress / files.length));
+            onProgress(fileProgress, `${message} (${i + 1}/${files.length})`);
+          }
+        });
         
         if (fileResult.success && fileResult.results) {
           // Add source filename to each result
